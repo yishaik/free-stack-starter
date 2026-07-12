@@ -8,6 +8,7 @@ const STACK = [
   ['Email', 'Resend', '~3,000 transactional emails/mo — signup, reset'],
   ['Errors', 'Sentry', '~5,000 events/mo — catch prod crashes'],
   ['Storage', 'Cloudflare R2', '10 GB + zero egress — assets scale for free'],
+  ['AI models', 'Hugging Face', 'Free models, datasets, Spaces, local inference + small API credit'],
   ['Domain', 'Cloudflare Registrar', 'At-cost domain, free DNS/SSL/email routing'],
 ]
 
@@ -31,11 +32,11 @@ export default async function Home() {
       </div>
       <h1 className="text-4xl font-bold tracking-tight">Free Stack Starter</h1>
       <p className="mt-3 max-w-xl text-muted">
-        Next.js + Supabase + Resend + Sentry + Cloudflare R2, wired and ready. Clone,
-        add your keys, deploy to Vercel. No monthly bill until you hit real scale.
+        Next.js + Supabase + Resend + Sentry + Cloudflare R2, with an optional Hugging Face
+        layer for models, datasets, Spaces, and local AI. Clone, add your keys, deploy to Vercel.
       </p>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex flex-wrap gap-3">
         {email ? (
           <Link href="/dashboard" className="rounded-lg bg-accent px-4 py-2 font-semibold text-[#06111a]">
             Go to dashboard →
@@ -46,10 +47,16 @@ export default async function Home() {
           </Link>
         )}
         <a
-          href="https://github.com/"
+          href="https://github.com/yishaik/free-stack-starter/blob/main/docs/STACK-GUIDE.md"
           className="rounded-lg border border-line px-4 py-2 text-ink"
         >
           Read the stack guide
+        </a>
+        <a
+          href="https://github.com/yishaik/free-stack-starter/blob/main/docs/HUGGING-FACE-FREE.md"
+          className="rounded-lg border border-line px-4 py-2 text-ink"
+        >
+          Hugging Face free guide
         </a>
       </div>
 
@@ -64,8 +71,9 @@ export default async function Home() {
       </div>
 
       <p className="mt-12 text-sm text-muted">
-        See <code className="text-accent">docs/STACK-GUIDE.md</code> for the full comparison
-        and the reasoning behind each choice.
+        The core web stack can stay at $0 for substantial side-project usage. AI inference has
+        separate compute limits; use the Hugging Face free layer for experiments and local models,
+        then budget production inference once traffic becomes measurable.
       </p>
     </main>
   )
