@@ -1,8 +1,5 @@
-# Keep the deploy upload lean — these don't affect the build/runtime.
-docs/
-STACK-GUIDE.md
-DEPLOY.md
-supabase/
-.github/
-*.md
-!README.md
+# Trim the deploy upload — non-build docs only.
+# NOTE: patterns are ROOT-ANCHORED with a leading "/" on purpose. An un-anchored
+# "supabase/" would also match lib/supabase/ and break the build — don't do that.
+/docs/
+/DEPLOY.md
