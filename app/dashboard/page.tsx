@@ -4,10 +4,17 @@ import { logout } from '../login/actions'
 import { UploadDemo } from '@/components/UploadDemo'
 
 // Protected route: the middleware refreshes the session; here we gate on the user.
+// Wrapped so a fresh deploy without Supabase env redirects to /login instead of 500.
 export default async function Dashboard() {
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) redirect('/login')
+  let user = null
+  try {
+    const supabase = await createClient()
+    user = (await supabase.auth.getUser()).data.user
+  } catch {
+    // Supabase not configured — treat as signed-out
+  }
+  if (!user) redirect('/login')
+  const data = { user }
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
