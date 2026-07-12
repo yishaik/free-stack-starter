@@ -1,7 +1,13 @@
 # Free Stack Starter
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyishaik%2Ffree-stack-starter)
+[![Live demo](https://img.shields.io/badge/demo-live-34d399?logo=vercel&logoColor=white)](https://free-stack-starter.vercel.app)
+[![License: MIT](https://img.shields.io/badge/license-MIT-22d3ee.svg)](LICENSE)
+[![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![Cost](https://img.shields.io/badge/cost-%240%2Fmo-8b5cf6.svg)](docs/STACK-GUIDE.md)
+
 A **$0/month** side-project starter that scales to **thousands of users** with no monthly bill —
-and no lock-in. Clone it, add your keys, deploy to Vercel.
+and no lock-in. Clone it, add your keys, deploy to Vercel. **Live demo → https://free-stack-starter.vercel.app**
 
 > **The stack:** [Next.js](https://nextjs.org) on [Vercel](https://vercel.com) · [Supabase](https://supabase.com) (Postgres + Auth) · [Resend](https://resend.com) (email) · [Sentry](https://sentry.io) (errors) · [Cloudflare R2](https://developers.cloudflare.com/r2/) (storage) · [Cloudflare Registrar](https://www.cloudflare.com/products/registrar/) (domain).
 >

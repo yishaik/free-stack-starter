@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { logout } from '../login/actions'
 import { UploadDemo } from '@/components/UploadDemo'
+import { Badge } from '@/components/Badge'
 
 // Protected route: the middleware refreshes the session; here we gate on the user.
 // Wrapped so a fresh deploy without Supabase env redirects to /login instead of 500.
@@ -19,7 +20,10 @@ export default async function Dashboard() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <Badge variant="success" dot live>Signed in</Badge>
+        </div>
         <form action={logout}>
           <button className="rounded-lg border border-line px-3 py-1.5 text-sm">Log out</button>
         </form>
