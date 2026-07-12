@@ -1,0 +1,8 @@
+# Keep the deploy upload lean — these don't affect the build/runtime.
+docs/
+STACK-GUIDE.md
+DEPLOY.md
+supabase/
+.github/
+*.md
+!README.md
