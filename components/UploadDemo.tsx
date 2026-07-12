@@ -1,49 +1,83 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
-// Client demo: ask our API for a presigned URL, then PUT the file directly to R2.
+const MAX_BYTES = 10 * 1024 * 1024
+const ALLOWED_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+  'text/plain',
+])
+
 export function UploadDemo() {
-  const [status, setStatus] = useState<string>('')
+  const [status, setStatus] = useState('')
   const [url, setUrl] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
-  async function onChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+  async function onChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
     if (!file) return
-    setStatus('requesting upload URL…')
+    if (!ALLOWED_TYPES.has(file.type)) return setStatus('Unsupported file type')
+    if (file.size > MAX_BYTES) return setStatus('File must be 10 MB or smaller')
+
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    setStatus('Requesting a secure upload URL…')
     setUrl(null)
+
     try {
-      const res = await fetch('/api/upload', {
+      const response = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/octet-stream' }),
+        signal: controller.signal,
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+        }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'failed to presign')
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to authorize upload')
 
-      setStatus('uploading to R2…')
-      const put = await fetch(data.uploadUrl, {
+      setStatus('Uploading directly to R2…')
+      const upload = await fetch(data.uploadUrl, {
         method: 'PUT',
-        headers: { 'content-type': file.type || 'application/octet-stream' },
+        headers: { 'content-type': file.type },
+        signal: controller.signal,
         body: file,
       })
-      if (!put.ok) throw new Error('R2 upload failed')
+      if (!upload.ok) throw new Error('R2 upload failed')
 
-      setStatus('done ✓')
-      setUrl(data.publicUrl)
-    } catch (err) {
-      setStatus('error: ' + (err instanceof Error ? err.message : String(err)))
+      setStatus('Upload complete ✓')
+      setUrl(data.publicUrl ?? null)
+    } catch (error) {
+      setStatus(error instanceof DOMException && error.name === 'AbortError'
+        ? 'Upload cancelled'
+        : `Error: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
   return (
-    <div className="mt-4">
-      <input type="file" onChange={onChange} className="text-sm" />
-      {status && <p className="mt-2 text-sm text-muted">{status}</p>}
+    <div className="mt-4 space-y-2">
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp,application/pdf,text/plain"
+        onChange={onChange}
+        className="text-sm"
+      />
+      {status && <p className="text-sm text-muted" role="status">{status}</p>}
       {url && (
-        <a href={url} target="_blank" className="mt-1 block text-sm text-accent underline">
-          {url}
+        <a href={url} target="_blank" rel="noreferrer" className="block text-sm text-accent underline">
+          Open uploaded file
         </a>
+      )}
+      {status.includes('Uploading') && (
+        <button type="button" onClick={() => abortRef.current?.abort()} className="text-sm underline">
+          Cancel
+        </button>
       )}
     </div>
   )
