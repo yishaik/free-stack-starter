@@ -1,35 +1,41 @@
 {
   "name": "free-stack-starter",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "A $0 side-project starter: Next.js on Vercel + Supabase + Resend + Sentry + Cloudflare R2. Scales to thousands of users with no monthly bill.",
+  "description": "A production-minded zero-cost starter for personal projects and validation, with explicit commercial upgrade paths.",
   "license": "MIT",
-  "engines": { "node": ">=18.18" },
+  "packageManager": "npm@10.8.2",
+  "engines": { "node": ">=20.9" },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/**/*.test.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.699.0",
     "@aws-sdk/s3-request-presigner": "^3.699.0",
-    "@sentry/nextjs": "^8.42.0",
-    "@supabase/ssr": "^0.5.2",
+    "@sentry/nextjs": "^10.0.0",
+    "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.47.10",
-    "next": "^15.1.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "resend": "^4.0.1"
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "resend": "^6.0.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
     "@types/node": "^22.10.2",
-    "@types/react": "^19.0.2",
-    "@types/react-dom": "^19.0.2",
-    "autoprefixer": "^10.4.20",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^16.1.6",
     "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17",
+    "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2"
   }
 }
