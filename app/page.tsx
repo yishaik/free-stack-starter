@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { Badge } from '@/components/Badge'
 
 const STACK = [
   ['Frontend', 'Next.js on Vercel', 'Global CDN, SSR + static + API routes, custom domain & SSL'],
@@ -23,8 +24,10 @@ export default async function Home() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
-      <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-line px-3 py-1 text-xs text-muted">
-        $0 / month · scales to thousands of users
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {/* live status badge — green when the app is deployed & running */}
+        <Badge variant="success" dot live>Live</Badge>
+        <Badge variant="accent">$0 / month · scales to thousands of users</Badge>
       </div>
       <h1 className="text-4xl font-bold tracking-tight">Free Stack Starter</h1>
       <p className="mt-3 max-w-xl text-muted">
@@ -53,8 +56,8 @@ export default async function Home() {
       <div className="mt-12 grid gap-3 sm:grid-cols-2">
         {STACK.map(([layer, tool, why]) => (
           <div key={layer} className="rounded-xl border border-line bg-panel p-4">
-            <div className="text-xs uppercase tracking-wide text-muted">{layer}</div>
-            <div className="mt-1 font-semibold">{tool}</div>
+            <Badge variant="default">{layer}</Badge>
+            <div className="mt-2 font-semibold">{tool}</div>
             <div className="mt-1 text-sm text-muted">{why}</div>
           </div>
         ))}
