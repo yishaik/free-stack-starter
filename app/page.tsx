@@ -61,10 +61,10 @@ export default function Home() {
         <section className="border-b border-line bg-panel/30">
           <div className="mx-auto grid max-w-7xl gap-3 px-5 py-8 sm:grid-cols-2 sm:px-8 lg:grid-cols-4">
             {COLLECTIONS.map(([audience, description]) => (
-              <Link key={audience} href={`/?audiences=${encodeURIComponent(audience)}#directory`} className="rounded-2xl border border-line bg-panel p-4 transition hover:-translate-y-0.5 hover:border-accent">
+              <a key={audience} href={`/?audiences=${encodeURIComponent(audience)}#directory`} className="rounded-2xl border border-line bg-panel p-4 transition hover:-translate-y-0.5 hover:border-accent">
                 <div className="font-semibold text-ink">{audience}</div>
                 <p className="mt-1 text-xs leading-5 text-muted">{description}</p>
-              </Link>
+              </a>
             ))}
           </div>
         </section>
