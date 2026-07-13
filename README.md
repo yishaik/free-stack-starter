@@ -180,7 +180,7 @@ The service-role key is imported only by `lib/supabase/admin.ts`; user stack wri
 ## Troubleshooting
 
 - **`/api/my-stack` returns `503` with "database schema is unavailable"** — the tables do not exist yet. Run `supabase/schema.sql` in the SQL Editor.
-- **`/api/my-stack` returns `503` "Account sync is not configured"** — `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` is missing. My Stack still works locally (localStorage); add the variables to enable account sync.
+- **`/api/my-stack` returns `503` "Account sync is not configured"** — `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` is missing from that deployment. On Vercel, set all five variables for **both** the Production and Preview environments — a variable added only to Production leaves preview deployments unconfigured. `NEXT_PUBLIC_*` values are inlined at build time, so redeploy after adding them. My Stack still works locally (localStorage) meanwhile.
 - **`42501 permission denied for table …` for a signed-in user** — RLS policies were created without the matching table grants. Re-run the current `schema.sql`, which grants DML on the account tables to `authenticated`.
 - **`/api/test-key` returns `503` "temporarily unavailable"** — in production the distributed limiter failed closed. Confirm `SUPABASE_SERVICE_ROLE_KEY` and `RATE_LIMIT_SECRET` are set and the `consume_rate_limit` function exists and is executable by `service_role`.
 - **Sign-in redirect loops or lands on the wrong page** — verify `NEXT_PUBLIC_SITE_URL` exactly matches the deployment origin used for same-origin checks.
