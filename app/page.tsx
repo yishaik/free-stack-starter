@@ -24,10 +24,11 @@ export default function Home() {
                 Build a serious product with a <span className="text-accent">$0 starting stack.</span>
               </h1>
               <p className="mt-6 max-w-3xl text-lg leading-8 text-muted">
-                A searchable directory of free tiers, open-source tools, design resources, APIs and developer platforms. Every card opens the service’s sign-up or get-started flow, and the credential workbench helps validate API keys without storing them.
+                A searchable directory of free tiers, open-source tools, design resources, APIs and developer platforms. Each service includes official docs, credential guidance, and a copyable prompt that connects your coding agent through the provider’s official MCP, CLI, SDK, or API.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#directory" className="rounded-xl bg-accent px-5 py-3 font-semibold text-[#06111a]">Explore all services ↓</a>
+                <Link href="/docs" className="rounded-xl border border-line bg-panel px-5 py-3 font-semibold hover:border-accent">Read the docs →</Link>
                 <Link href="/test-keys" className="rounded-xl border border-line bg-panel px-5 py-3 font-semibold hover:border-accent">Test API keys →</Link>
               </div>
             </div>
@@ -55,7 +56,7 @@ export default function Home() {
               <h2 className="mt-2 text-3xl font-bold">Find the right free building block</h2>
             </div>
             <p className="max-w-xl text-sm leading-6 text-muted">
-              Free-tier limits and eligibility change. The catalog avoids hard-coding fragile quota numbers; verify the current allowance and commercial-use terms on each provider’s sign-up page before production use.
+              Free-tier limits and eligibility change. Verify the current allowance, commercial-use terms, and official agent tooling on each provider’s documentation before production use.
             </p>
           </div>
           <ServiceDirectory />
@@ -63,10 +64,11 @@ export default function Home() {
       </main>
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-8 text-sm text-muted sm:px-8">
-          <span>Free Stack Starter · MIT licensed</span>
+          <span>Free Stack Directory · MIT licensed</span>
           <div className="flex gap-4">
-            <a href="https://github.com/yishaik/free-stack-starter" target="_blank" rel="noreferrer" className="hover:text-accent">Contribute a service ↗</a>
+            <Link href="/docs" className="hover:text-accent">Docs</Link>
             <Link href="/test-keys" className="hover:text-accent">Credential security</Link>
+            <a href="https://github.com/yishaik/free-stack-starter" target="_blank" rel="noreferrer" className="hover:text-accent">Contribute a service ↗</a>
           </div>
         </div>
       </footer>
