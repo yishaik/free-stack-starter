@@ -32,6 +32,19 @@ test('parses extended metadata fields', () => {
   assert.equal(service.lastVerified, '2026-06-20')
 })
 
+test('trims fields before creating ids and validating metadata', () => {
+  const [service] = parseCatalog(
+    '  dbt Core  | AC | a,d | o | SQL transformations. | https://example.com/install | https://example.com/docs | SQL, ETL || 2026-07-01 | https://github.com/example/list | linux, macos | local, cloud ',
+    options,
+  )
+
+  assert.equal(service.name, 'dbt Core')
+  assert.equal(service.id, 'dbt-core')
+  assert.deepEqual(service.tags.slice(0, 2), ['sql', 'etl'])
+  assert.deepEqual(service.platforms, ['linux', 'macos'])
+  assert.deepEqual(service.deployment, ['local', 'cloud'])
+})
+
 test('rejects invalid URLs and dates', () => {
   assert.throws(
     () => parseCatalog('Bad|K|d|f|Broken.|not-a-url|https://example.com/docs|tag', options),
