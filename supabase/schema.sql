@@ -175,6 +175,16 @@ create trigger user_stacks_set_updated_at
   before update on public.user_stacks
   for each row execute function public.set_updated_at();
 
+-- Table privileges. RLS (above) decides WHICH ROWS each role may touch; these grants
+-- let the `authenticated` role issue the query in the first place. Without them,
+-- PostgREST returns "42501 permission denied" for signed-in users even with policies,
+-- because some Supabase environments do not grant DML on new tables by default.
+-- `anon` is intentionally excluded: My Stack requires authentication, and anonymous
+-- stacks live only in the browser (localStorage), never in these tables.
+grant select, insert, update on public.profiles to authenticated;
+grant select, insert, update, delete on public.user_stacks to authenticated;
+grant select, insert, update, delete on public.stack_services to authenticated;
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Private, atomic rate-limit storage
 -- ─────────────────────────────────────────────────────────────────────────────
