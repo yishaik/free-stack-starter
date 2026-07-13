@@ -3,7 +3,7 @@
 [![Live demo](https://img.shields.io/badge/demo-live-34d399?logo=vercel&logoColor=white)](https://free-stack-starter.vercel.app)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22d3ee.svg)](LICENSE)
 [![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
-[![Catalog](https://img.shields.io/badge/catalog-450%2B%20services-8b5cf6.svg)](https://free-stack-starter.vercel.app/#directory)
+[![Catalog](https://img.shields.io/badge/catalog-466%20services-8b5cf6.svg)](https://free-stack-starter.vercel.app/#directory)
 
 A curated directory of free tiers and open-source tools for **development, DevOps, IT, security, data, design, productivity, and business operations** — built as a real-world example of a maintainable **$0 starting stack**.
 
@@ -11,23 +11,26 @@ A curated directory of free tiers and open-source tools for **development, DevOp
 
 ## Product highlights
 
-- **450+ services across 30 categories** — development platforms, containers, CI/CD, infrastructure as code, IT operations, backups, networking, productivity, business tools, BI, self-hosting, design, AI, and more.
+- **466 services across 30 categories** — development platforms, containers, CI/CD, infrastructure as code, IT operations, backups, networking, productivity, business tools, BI, self-hosting, design, AI, and more.
 - **Fuzzy client-side search** — weighted matching across names, summaries, categories, audiences, and tags, with debounce and typo tolerance.
 - **Powerful multi-select filters** — categories, audiences, free-plan models, tags, live key tests, sorting, active chips, and URL persistence.
-- **Complete service cards** — official links, source, last verification date, audiences, tags, platforms, deployment model, credential guidance, and agent access.
+- **Complete service cards** — official links, source, last verification date, audiences, tags, platforms, deployment model, credential guidance, agent access, and Save to My Stack.
+- **Local-first My Stack** — anonymous users save services in the browser; signed-in users sync them through Supabase with Row-Level Security.
 - **Agent access prompts** — every service generates a supply-chain-aware prompt that prefers the provider's official MCP server, then CLI, then SDK/API.
-- **Credential workbench** — allowlisted providers receive server-side, read-only validation; other services receive a guided setup path.
-- **Maintenance tooling** — parser tests, search/filter tests, catalog validation, statistics, and GitHub Actions CI.
+- **Credential workbench** — allowlisted providers receive server-side, read-only validation protected by privacy-preserving distributed rate limits.
+- **Maintenance tooling** — parser, search, stack, and rate-limit tests; catalog validation; statistics; and GitHub Actions CI.
 - **Responsive themes** — system, light, and dark modes with accessible focus and reduced-motion behavior.
 
 ## Routes
 
 | Route | Purpose |
 |---|---|
-| `/` | Fuzzy searchable directory, filters, service cards, and curated audience collections |
+| `/` | Fuzzy searchable directory, filters, service cards, curated collections, and save controls |
+| `/my-stack` | Local-first saved services with optional authenticated Supabase sync |
 | `/docs` | Usage, catalog model, security, sources, and contribution documentation |
 | `/test-keys` | Credential setup and read-only API-key validation |
-| `/api/test-key` | Server-side allowlisted credential validation endpoint |
+| `/api/my-stack` | RLS-backed authenticated stack synchronization |
+| `/api/test-key` | Allowlisted credential validation with distributed rate limiting |
 | `/sitemap.xml` | Search-engine sitemap |
 
 ## Search model
@@ -41,6 +44,29 @@ The directory uses a small dependency-free fuzzy scoring engine in `lib/service-
 - Multiple selected tags use AND logic.
 - Filters serialize to the URL for sharing, bookmarks, and browser navigation.
 - Results render incrementally using an Intersection Observer and a manual Load more fallback.
+
+## My Stack architecture
+
+My Stack is intentionally local-first:
+
+1. Anonymous selections are validated against the static catalog and stored in a versioned `localStorage` key.
+2. The client checks `/api/my-stack` without exposing Supabase credentials.
+3. A `401` or unconfigured Supabase keeps the user in local mode.
+4. After authentication, local and account services merge automatically.
+5. Account writes use the user's Supabase session and database RLS—not the service-role key.
+6. Every user receives one default stack, enforced by a partial unique index.
+
+Tables:
+
+```text
+public.user_stacks
+  id, user_id, name, description, is_default, timestamps
+
+public.stack_services
+  stack_id, service_id, notes, added_at
+```
+
+RLS policies allow users to read and change only stacks owned by `auth.uid()`. The service IDs are revalidated against the compiled catalog in both the client utility and API route.
 
 ## Catalog architecture
 
@@ -119,17 +145,45 @@ Each service card contains **Give an agent access**. The generated prompt instru
 
 Unofficial MCP servers, look-alike packages, forks, and installation scripts require explicit approval.
 
-## Credential workbench
+## Credential endpoint and rate limiting
 
 The key tester is a setup utility, not a secret store.
 
-- Tokens are submitted once to a server-side route and are not stored by the application.
+- Tokens are submitted once to a server-side Node route and are not stored by the application.
 - Live checks use fixed provider-specific identity, account, metadata, list, or ping endpoints.
 - Users cannot provide arbitrary destination URLs.
-- Redirects are refused, request bodies are capped, and requests time out.
+- Redirects are refused, request bodies and token lengths are capped, and requests time out.
+- Write requests require JSON and pass same-origin validation when an Origin header is present.
+- Responses include no-store, CSP, permissions, referrer, request-ID, and rate-limit headers.
 - Permission-related responses are reported as inconclusive rather than automatically invalid.
 
-A distributed rate limiter is planned for the next Supabase-focused phase. The current endpoint still uses an in-memory limiter and should be reviewed before high-volume public deployment.
+When Supabase admin credentials are configured, the endpoint calls an atomic `consume_rate_limit` Postgres function. Client identities are HMAC-hashed before storage, so raw IP addresses do not enter the database. The private rate-limit table is inaccessible to `anon` and `authenticated` roles. If distributed storage is configured but unavailable, production requests fail closed with `503` rather than bypassing protection. Local development can use the bounded in-memory fallback.
+
+## Supabase setup
+
+1. Create a Supabase project.
+2. Run `supabase/schema.sql` in SQL Editor.
+3. Copy `.env.example` to `.env.local`.
+4. Add the project URL, anon key, service-role key, and a random `RATE_LIMIT_SECRET`.
+5. Configure the production `NEXT_PUBLIC_SITE_URL` exactly.
+
+Generate a rate-limit secret with:
+
+```bash
+openssl rand -base64 32
+```
+
+The service-role key is imported only by `lib/supabase/admin.ts`; user stack writes use the session-bound server client and RLS.
+
+`schema.sql` is idempotent (safe to re-run) and grants table privileges only to the `authenticated` role — `anon` never receives access to account tables, because anonymous stacks live only in the browser.
+
+## Troubleshooting
+
+- **`/api/my-stack` returns `503` with "database schema is unavailable"** — the tables do not exist yet. Run `supabase/schema.sql` in the SQL Editor.
+- **`/api/my-stack` returns `503` "Account sync is not configured"** — `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` is missing from that deployment. On Vercel, set all five variables for **both** the Production and Preview environments — a variable added only to Production leaves preview deployments unconfigured. `NEXT_PUBLIC_*` values are inlined at build time, so redeploy after adding them. My Stack still works locally (localStorage) meanwhile.
+- **`42501 permission denied for table …` for a signed-in user** — RLS policies were created without the matching table grants. Re-run the current `schema.sql`, which grants DML on the account tables to `authenticated`.
+- **`/api/test-key` returns `503` "temporarily unavailable"** — in production the distributed limiter failed closed. Confirm `SUPABASE_SERVICE_ROLE_KEY` and `RATE_LIMIT_SECRET` are set and the `consume_rate_limit` function exists and is executable by `service_role`.
+- **Sign-in redirect loops or lands on the wrong page** — verify `NEXT_PUBLIC_SITE_URL` exactly matches the deployment origin used for same-origin checks.
 
 ## Local development
 
@@ -137,10 +191,11 @@ A distributed rate limiter is planned for the next Supabase-focused phase. The c
 git clone https://github.com/yishaik/free-stack-starter.git
 cd free-stack-starter
 npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. The directory and docs render without provider credentials.
+Open http://localhost:3000. The directory, local My Stack, and docs render without provider credentials. Account sync and distributed rate limiting require the Supabase schema and environment variables.
 
 ## Validation and maintenance
 
@@ -149,40 +204,47 @@ npm run typecheck          # TypeScript application check
 npm test                   # Node test runner + compiled TypeScript tests
 npm run catalog:validate   # Metadata completeness and catalog integrity
 npm run catalog:stats      # Category, audience, tag, and source report
-npm run build              # Next.js production build
+npm run build              # Validation prebuild + Next.js production build
 npm run check              # Run the complete validation pipeline
 ```
 
-GitHub Actions runs type checking, tests, catalog validation, and a production build for every pull request.
+GitHub Actions and Vercel builds run type checking, all tests, catalog validation, and a production build.
 
 ## Project structure
 
 ```text
 app/
   page.tsx                    Directory landing page
+  my-stack/page.tsx           Local/account saved-services workspace
   docs/page.tsx               In-app documentation
   test-keys/page.tsx          Credential workbench
-  api/test-key/route.ts       Rate-limited server-side validation
-  loading.tsx                 Loading skeletons
-  error.tsx                   Recoverable route error state
-  sitemap.ts / robots.ts      SEO discovery metadata
+  api/my-stack/route.ts       Authenticated RLS-backed synchronization
+  api/test-key/route.ts       Hardened distributed-rate-limited validation
 components/
   ServiceDirectory.tsx        Search state, multi-filters, URL state, and pagination
-  ServiceCard.tsx             Consistent metadata-rich service card
+  ServiceCard.tsx             Metadata, setup, agent access, and save controls
+  MyStackProvider.tsx         Local-first state and account synchronization
+  MyStackView.tsx             Saved-services UI
   AgentAccessBox.tsx          Copyable official-tooling prompt
   ThemeToggle.tsx             System/light/dark theme control
-  KeyTester.tsx               Credential-testing interface
 lib/
   catalog-parser.ts           Typed parser and metadata inference
   service-search.ts           Search, sorting, filters, and URL serialization
+  my-stack-core.ts            Stack validation, merging, and storage format
+  rate-limit-core.ts          HMAC and memory rate-limit primitives
+  rate-limit.ts               Supabase distributed limiter integration
+  supabase/admin.ts           Server-only service-role client
   agent-access.ts             Service-specific secure agent prompt generator
-  live-testers.ts             Providers with supported live checks
   test-runner.ts              Fixed provider validation implementations
+supabase/
+  schema.sql                  Profiles, stacks, RLS, private rate limits, RPCs
 scripts/
   catalog-report.ts           Validation and maintenance reporting
 tests/
   catalog-parser.test.ts      Parser and validation coverage
   service-search.test.ts      Fuzzy search, filters, and URL-state coverage
+  my-stack.test.ts            Stack storage and catalog validation
+  rate-limit.test.ts          Hashing, memory windows, and pruning
 ```
 
 ## Contributing a service

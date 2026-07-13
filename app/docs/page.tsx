@@ -5,13 +5,13 @@ import { AUDIENCES, CATEGORIES, LAST_REVIEWED, SERVICES } from '@/lib/services'
 
 export const metadata: Metadata = {
   title: 'Docs',
-  description: 'Use, extend and safely maintain the Free Stack Directory and its agent-access and credential workflows.',
+  description: 'Use, extend and safely maintain the Free Stack Directory, My Stack, agent access, and credential workflows.',
 }
 
 const STEPS = [
   ['Search broadly', 'Fuzzy search matches names, descriptions, categories and tags, including small misspellings.'],
   ['Narrow precisely', 'Combine multiple categories, audiences, plans, tags and the live-key-test filter. Filters are saved in the URL.'],
-  ['Review evidence', 'Check the official documentation, source list and last-verified date before choosing a service.'],
+  ['Build My Stack', 'Save services locally without an account, then sign in to merge and sync them across devices.'],
   ['Connect safely', 'Copy the agent-access prompt, grant read-only permissions first and use the credential tester where supported.'],
 ]
 
@@ -48,10 +48,11 @@ export default function DocsPage() {
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-accent">Product documentation</p>
           <h1 className="mt-2 text-4xl font-black tracking-tight text-ink sm:text-5xl">Free Stack Directory docs</h1>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-muted">
-            The project is both a curated directory of free and open-source tools and a real-world example of a maintainable $0 starting stack.
+            The project is both a curated directory of free and open-source tools and a real-world example of a maintainable, secure $0 starting stack.
           </p>
           <div className="mt-6 flex flex-wrap gap-3 text-sm">
             <Link href="/#directory" className="rounded-xl bg-accent px-4 py-2.5 font-semibold text-[#06111a]">Browse {SERVICES.length} services</Link>
+            <Link href="/my-stack" className="rounded-xl border border-accent/40 bg-accent/10 px-4 py-2.5 font-semibold text-accent hover:border-accent">Open My Stack</Link>
             <Link href="/test-keys" className="rounded-xl border border-line bg-panel px-4 py-2.5 font-semibold text-ink hover:border-accent">Open credential tester</Link>
           </div>
         </div>
@@ -63,9 +64,10 @@ export default function DocsPage() {
               <div className="grid gap-1 text-muted">
                 <a href="#overview" className="rounded-lg px-3 py-2 hover:bg-bg hover:text-ink">Overview</a>
                 <a href="#search" className="rounded-lg px-3 py-2 hover:bg-bg hover:text-ink">Search and filters</a>
-                <a href="#cards" className="rounded-lg px-3 py-2 hover:bg-bg hover:text-ink">Service cards</a>
+                <a href="#my-stack" className="rounded-lg px-3 py-2 hover:bg-bg hover:text-ink">My Stack</a>
                 <a href="#agent-access" className="rounded-lg px-3 py-2 hover:bg-bg hover:text-ink">Agent access</a>
                 <a href="#credentials" className="rounded-lg px-3 py-2 hover:bg-bg hover:text-ink">Credential safety</a>
+                <a href="#supabase" className="rounded-lg px-3 py-2 hover:bg-bg hover:text-ink">Supabase schema</a>
                 <a href="#catalog" className="rounded-lg px-3 py-2 hover:bg-bg hover:text-ink">Catalog model</a>
                 <a href="#sources" className="rounded-lg px-3 py-2 hover:bg-bg hover:text-ink">Sources</a>
                 <a href="#maintenance" className="rounded-lg px-3 py-2 hover:bg-bg hover:text-ink">Maintenance</a>
@@ -92,25 +94,38 @@ export default function DocsPage() {
               </div>
             </Section>
 
-            <Section id="search" title="Search and filters">
+            <Section id="search" title="Search, filters and cards">
               <p>Search is client-side, debounced and fuzzy. Selected filters use OR logic inside categories, audiences and plans; selected tags use AND logic so each result contains every chosen tag.</p>
               <ul className="mt-4 list-disc space-y-2 pl-5">
                 <li>Multi-select categories, audiences, free-plan models and tags.</li>
                 <li>Live-key-test toggle and quick audience filters for DevOps, IT and Productivity.</li>
                 <li>Sort by relevance, name, verification date, open-source status or live-test availability.</li>
-                <li>Active filter chips with individual removal and a single Clear all action.</li>
-                <li>URL persistence for sharing, bookmarks and browser back/forward navigation.</li>
-                <li>Incremental rendering with automatic load-more and a manual fallback button.</li>
+                <li>Active filter chips, URL persistence, browser navigation and incremental rendering.</li>
+                <li>Every card includes official links, source, verification date, audiences, tags, platforms, deployment, credentials, agent access and Save to My Stack.</li>
               </ul>
             </Section>
 
-            <Section id="cards" title="Service-card contract">
-              <p>Every card uses the same information contract so services can be compared without opening multiple tabs:</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {['Category and free model', 'All inferred and explicit audiences', 'Capability tags', 'Official setup and documentation links', 'Last-verified date and discovery source', 'Platforms and deployment metadata', 'Credential setup or live test', 'Copyable agent-access prompt'].map((item) => (
-                  <div key={item} className="rounded-xl border border-line bg-bg px-4 py-3 text-ink">{item}</div>
-                ))}
+            <Section id="my-stack" title="My Stack: local-first and account sync">
+              <p>Saving a service does not require an account. Anonymous selections are validated against the compiled catalog and stored in a versioned browser key. The personalized page is marked noindex.</p>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-line bg-bg p-4">
+                  <h3 className="font-semibold text-ink">Local mode</h3>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    <li>No Supabase configuration is required.</li>
+                    <li>Selections remain in the current browser.</li>
+                    <li>Unknown, duplicated and malformed service IDs are discarded.</li>
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-line bg-bg p-4">
+                  <h3 className="font-semibold text-ink">Account mode</h3>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    <li>Local and account selections merge after login.</li>
+                    <li>The API uses the user's session-bound Supabase client.</li>
+                    <li>RLS limits reads and writes to stacks owned by <code className="text-ink">auth.uid()</code>.</li>
+                  </ul>
+                </div>
               </div>
+              <p className="mt-4">The service-role client is never used for My Stack writes. It is reserved for private operational functions such as distributed rate limiting.</p>
             </Section>
 
             <Section id="agent-access" title="Agent access prompts">
@@ -126,20 +141,34 @@ export default function DocsPage() {
               </div>
             </Section>
 
-            <Section id="credentials" title="Credential safety">
+            <Section id="credentials" title="Credential endpoint security">
               <ul className="list-disc space-y-2 pl-5">
                 {SECURITY_RULES.map((rule) => <li key={rule}>{rule}</li>)}
               </ul>
               <div className="mt-5 rounded-xl border border-line bg-bg p-4">
-                <h3 className="font-semibold text-ink">Credential tester behavior</h3>
-                <p className="mt-2">Supported live tests send the submitted credential only to a fixed read-only provider endpoint. Requests are server-side, redirects are refused, bodies are capped and credentials are not stored by the application.</p>
+                <h3 className="font-semibold text-ink">Request controls</h3>
+                <p className="mt-2">Supported live tests use fixed read-only provider endpoints. The API validates origin and JSON content type, caps request and token sizes, refuses redirects, returns request IDs, disables caching and sends restrictive security headers.</p>
               </div>
+              <div className="mt-4 rounded-xl border border-line bg-bg p-4">
+                <h3 className="font-semibold text-ink">Distributed rate limiting</h3>
+                <p className="mt-2">With Supabase configured, the endpoint HMAC-hashes the client identity and calls an atomic Postgres function. The raw IP is never stored. The backing table lives in a private schema, and only <code className="text-ink">service_role</code> may execute the RPC. Configured production deployments fail closed if rate-limit storage is unavailable.</p>
+              </div>
+            </Section>
+
+            <Section id="supabase" title="Supabase schema and environment">
+              <p>Run <code className="rounded bg-bg px-1.5 py-0.5 font-mono text-xs text-ink">supabase/schema.sql</code> to create profiles, stacks, RLS policies, the private limiter table and its atomic RPC.</p>
+              <pre className="mt-5 overflow-x-auto rounded-xl border border-line bg-bg p-4 font-mono text-xs leading-6 text-ink"><code>{`NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+RATE_LIMIT_SECRET=
+NEXT_PUBLIC_SITE_URL=`}</code></pre>
+              <p className="mt-4">Generate <code className="text-ink">RATE_LIMIT_SECRET</code> with <code className="text-ink">openssl rand -base64 32</code>. Keep the service-role key and rate-limit secret server-only.</p>
             </Section>
 
             <Section id="catalog" title="Catalog data model">
               <p>Catalog files live in <code className="rounded bg-bg px-1.5 py-0.5 font-mono text-xs text-ink">lib/catalog-a.ts</code> through <code className="rounded bg-bg px-1.5 py-0.5 font-mono text-xs text-ink">lib/catalog-e.ts</code>. The parser supports both the original compact rows and extended metadata.</p>
               <pre className="mt-5 overflow-x-auto rounded-xl border border-line bg-bg p-4 font-mono text-xs leading-6 text-ink"><code>{'Name|category|audiences|plan|summary|signup|docs|tags|testerId|lastVerified|source|platforms|deployment'}</code></pre>
-              <p className="mt-4">Legacy rows receive the catalog review date and repository source automatically. Categories and tags infer additional audiences, allowing the existing catalog to support DevOps, IT, security, data, productivity and operations without a destructive migration.</p>
+              <p className="mt-4">Legacy rows receive the catalog review date and repository source automatically. Categories and tags infer additional audiences without a destructive migration.</p>
             </Section>
 
             <Section id="sources" title="Curated sources">
@@ -151,7 +180,7 @@ export default function DocsPage() {
                   </a>
                 ))}
               </div>
-              <p className="mt-4">Awesome lists are discovery sources, not automatic imports. Each added entry should still use official provider URLs and be reviewed for maintenance, licensing and free-use eligibility.</p>
+              <p className="mt-4">Awesome lists are discovery sources, not automatic imports. Each entry still uses official provider URLs and is reviewed for maintenance, licensing and free-use eligibility.</p>
             </Section>
 
             <Section id="maintenance" title="Maintenance and validation">
@@ -161,7 +190,7 @@ npm run catalog:validate
 npm run catalog:stats
 npm run build
 npm run check`}</code></pre>
-              <p className="mt-4">GitHub Actions runs type checking, dependency-free Node tests, catalog validation and a production build on every pull request. The validator checks metadata completeness and reports category, audience and source coverage.</p>
+              <p className="mt-4">Tests cover catalog parsing, fuzzy filters, URL state, stack validation, HMAC hashing, rate-limit windows and pruning. GitHub Actions and Vercel builds run the full validation pipeline.</p>
               <a href="https://github.com/yishaik/free-stack-starter" target="_blank" rel="noreferrer" className="mt-5 inline-flex font-semibold text-accent hover:underline">Open the repository ↗</a>
             </Section>
           </div>

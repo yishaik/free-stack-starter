@@ -1,30 +1,40 @@
 'use server'
 
-import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { safeRedirectPath } from '@/lib/safe-redirect'
 import { createClient } from '@/lib/supabase/server'
 
+function safeNext(formData: FormData) {
+  return safeRedirectPath(formData.get('next'))
+}
+
+function loginUrl(params: Record<string, string>) {
+  const search = new URLSearchParams(params)
+  return `/login?${search.toString()}`
+}
+
 export async function login(formData: FormData) {
+  const next = safeNext(formData)
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({
     email: String(formData.get('email')),
     password: String(formData.get('password')),
   })
-  if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`)
+  if (error) redirect(loginUrl({ error: error.message, next }))
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  redirect(next)
 }
 
 export async function signup(formData: FormData) {
+  const next = safeNext(formData)
   const supabase = await createClient()
   const { error } = await supabase.auth.signUp({
     email: String(formData.get('email')),
     password: String(formData.get('password')),
   })
-  if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`)
-  // depending on your Supabase email-confirmation setting, the user may need to
-  // confirm via the magic link before logging in
-  redirect('/login?message=Check your email to confirm your account, then log in.')
+  if (error) redirect(loginUrl({ error: error.message, next }))
+  redirect(loginUrl({ message: 'Check your email to confirm your account, then log in.', next }))
 }
 
 export async function logout() {

@@ -13,7 +13,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"require('fs').rmSync('.tmp-tests',{recursive:true,force:true})\" && tsc -p tsconfig.tests.json && node --test .tmp-tests/tests/catalog-parser.test.js .tmp-tests/tests/service-search.test.js",
+    "test": "node -e \"require('fs').rmSync('.tmp-tests',{recursive:true,force:true})\" && tsc -p tsconfig.tests.json && node --test .tmp-tests/tests/*.test.js",
     "catalog:validate": "node -e \"require('fs').rmSync('.tmp-tools',{recursive:true,force:true})\" && tsc -p tsconfig.tools.json && node .tmp-tools/scripts/catalog-report.js --validate",
     "catalog:stats": "node -e \"require('fs').rmSync('.tmp-tools',{recursive:true,force:true})\" && tsc -p tsconfig.tools.json && node .tmp-tools/scripts/catalog-report.js",
     "check": "npm run validate && next build"

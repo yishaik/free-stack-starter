@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { MyStackProvider } from '@/components/MyStackProvider'
 import { ServiceDirectory } from '@/components/ServiceDirectory'
 import { SiteHeader } from '@/components/SiteHeader'
 import { AUDIENCES, CATEGORIES, LAST_REVIEWED, SERVICES } from '@/lib/services'
@@ -37,6 +38,7 @@ export default function Home() {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#directory" className="rounded-xl bg-accent px-5 py-3 font-semibold text-[#06111a]">Explore all services ↓</a>
+                <Link href="/my-stack" className="rounded-xl border border-accent/40 bg-accent/10 px-5 py-3 font-semibold text-accent hover:border-accent">Open My Stack →</Link>
                 <Link href="/docs" className="rounded-xl border border-line bg-panel px-5 py-3 font-semibold text-ink hover:border-accent">Read the docs →</Link>
                 <Link href="/test-keys" className="rounded-xl border border-line bg-panel px-5 py-3 font-semibold text-ink hover:border-accent">Test API keys →</Link>
               </div>
@@ -79,13 +81,14 @@ export default function Home() {
               Free-tier limits and eligibility change. Verify current allowances, commercial-use terms and official agent tooling in each provider’s documentation before production use.
             </p>
           </div>
-          <ServiceDirectory />
+          <MyStackProvider><ServiceDirectory /></MyStackProvider>
         </section>
       </main>
       <footer className="border-t border-line bg-panel/30">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-8 text-sm text-muted sm:px-8">
           <span>Free Stack Directory · curated directory + real $0 stack example</span>
           <div className="flex flex-wrap gap-4">
+            <Link href="/my-stack" className="hover:text-accent">My Stack</Link>
             <Link href="/docs" className="hover:text-accent">Docs</Link>
             <Link href="/test-keys" className="hover:text-accent">Credential security</Link>
             <a href="https://github.com/yishaik/free-stack-starter" target="_blank" rel="noreferrer" className="hover:text-accent">Contribute a service ↗</a>
