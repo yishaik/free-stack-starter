@@ -1,80 +1,75 @@
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import { Badge } from '@/components/Badge'
+import { ServiceDirectory } from '@/components/ServiceDirectory'
+import { SiteHeader } from '@/components/SiteHeader'
+import { CATEGORIES, LAST_REVIEWED, SERVICES } from '@/lib/services'
+import { LIVE_TESTER_SET } from '@/lib/live-testers'
 
-const STACK = [
-  ['Frontend', 'Next.js on Vercel', 'Global CDN, SSR + static + API routes, custom domain & SSL'],
-  ['DB + Auth', 'Supabase', 'Real Postgres (portable), auth + Row-Level Security'],
-  ['Email', 'Resend', '~3,000 transactional emails/mo — signup, reset'],
-  ['Errors', 'Sentry', '~5,000 events/mo — catch prod crashes'],
-  ['Storage', 'Cloudflare R2', '10 GB + zero egress — assets scale for free'],
-  ['AI models', 'Hugging Face', 'Free models, datasets, Spaces, local inference + small API credit'],
-  ['Domain', 'Cloudflare Registrar', 'At-cost domain, free DNS/SSL/email routing'],
-]
+const liveTests = SERVICES.filter((service) => service.testerId && LIVE_TESTER_SET.has(service.testerId)).length
+const designerTools = SERVICES.filter((service) => service.audience === 'Designers' || service.audience === 'Both').length
 
-export default async function Home() {
-  // demonstrates a server-side Supabase read of the current session
-  let email: string | null = null
-  try {
-    const supabase = await createClient()
-    const { data } = await supabase.auth.getUser()
-    email = data.user?.email ?? null
-  } catch {
-    // Supabase not configured yet — the landing page still renders
-  }
-
+export default function Home() {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        {/* live status badge — green when the app is deployed & running */}
-        <Badge variant="success" dot live>Live</Badge>
-        <Badge variant="accent">$0 / month · scales to thousands of users</Badge>
-      </div>
-      <h1 className="text-4xl font-bold tracking-tight">Free Stack Starter</h1>
-      <p className="mt-3 max-w-xl text-muted">
-        Next.js + Supabase + Resend + Sentry + Cloudflare R2, with an optional Hugging Face
-        layer for models, datasets, Spaces, and local AI. Clone, add your keys, deploy to Vercel.
-      </p>
+    <>
+      <SiteHeader />
+      <main>
+        <section className="relative overflow-hidden border-b border-line">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.16),transparent_35%),radial-gradient(circle_at_85%_20%,rgba(139,92,246,0.12),transparent_30%)]" />
+          <div className="relative mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24">
+            <div className="max-w-4xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">Community-ready catalog</span>
+                <span className="rounded-full border border-line bg-panel px-3 py-1 text-xs text-muted">Reviewed {LAST_REVIEWED}</span>
+              </div>
+              <h1 className="mt-6 text-4xl font-black tracking-tight sm:text-6xl">
+                Build a serious product with a <span className="text-accent">$0 starting stack.</span>
+              </h1>
+              <p className="mt-6 max-w-3xl text-lg leading-8 text-muted">
+                A searchable directory of free tiers, open-source tools, design resources, APIs and developer platforms. Every card opens the service’s sign-up or get-started flow, and the credential workbench helps validate API keys without storing them.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <a href="#directory" className="rounded-xl bg-accent px-5 py-3 font-semibold text-[#06111a]">Explore all services ↓</a>
+                <Link href="/test-keys" className="rounded-xl border border-line bg-panel px-5 py-3 font-semibold hover:border-accent">Test API keys →</Link>
+              </div>
+            </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        {email ? (
-          <Link href="/dashboard" className="rounded-lg bg-accent px-4 py-2 font-semibold text-[#06111a]">
-            Go to dashboard →
-          </Link>
-        ) : (
-          <Link href="/login" className="rounded-lg bg-accent px-4 py-2 font-semibold text-[#06111a]">
-            Sign in →
-          </Link>
-        )}
-        <a
-          href="https://github.com/yishaik/free-stack-starter/blob/main/docs/STACK-GUIDE.md"
-          className="rounded-lg border border-line px-4 py-2 text-ink"
-        >
-          Read the stack guide
-        </a>
-        <a
-          href="https://github.com/yishaik/free-stack-starter/blob/main/docs/HUGGING-FACE-FREE.md"
-          className="rounded-lg border border-line px-4 py-2 text-ink"
-        >
-          Hugging Face free guide
-        </a>
-      </div>
-
-      <div className="mt-12 grid gap-3 sm:grid-cols-2">
-        {STACK.map(([layer, tool, why]) => (
-          <div key={layer} className="rounded-xl border border-line bg-panel p-4">
-            <Badge variant="default">{layer}</Badge>
-            <div className="mt-2 font-semibold">{tool}</div>
-            <div className="mt-1 text-sm text-muted">{why}</div>
+            <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                [SERVICES.length.toString(), 'services and tools'],
+                [CATEGORIES.length.toString(), 'practical categories'],
+                [liveTests.toString(), 'secure live key checks'],
+                [designerTools.toString(), 'designer-friendly options'],
+              ].map(([value, label]) => (
+                <div key={label} className="rounded-2xl border border-line bg-panel/70 p-5 backdrop-blur">
+                  <div className="font-mono text-3xl font-black text-accent">{value}</div>
+                  <div className="mt-1 text-sm text-muted">{label}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
+        </section>
 
-      <p className="mt-12 text-sm text-muted">
-        The core web stack can stay at $0 for substantial side-project usage. AI inference has
-        separate compute limits; use the Hugging Face free layer for experiments and local models,
-        then budget production inference once traffic becomes measurable.
-      </p>
-    </main>
+        <section id="directory" className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.18em] text-accent">The directory</p>
+              <h2 className="mt-2 text-3xl font-bold">Find the right free building block</h2>
+            </div>
+            <p className="max-w-xl text-sm leading-6 text-muted">
+              Free-tier limits and eligibility change. The catalog avoids hard-coding fragile quota numbers; verify the current allowance and commercial-use terms on each provider’s sign-up page before production use.
+            </p>
+          </div>
+          <ServiceDirectory />
+        </section>
+      </main>
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-8 text-sm text-muted sm:px-8">
+          <span>Free Stack Starter · MIT licensed</span>
+          <div className="flex gap-4">
+            <a href="https://github.com/yishaik/free-stack-starter" target="_blank" rel="noreferrer" className="hover:text-accent">Contribute a service ↗</a>
+            <Link href="/test-keys" className="hover:text-accent">Credential security</Link>
+          </div>
+        </div>
+      </footer>
+    </>
   )
 }
