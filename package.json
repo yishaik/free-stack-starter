@@ -7,6 +7,8 @@
   "engines": { "node": ">=18.18" },
   "scripts": {
     "dev": "next dev",
+    "validate": "npm run typecheck && npm test && npm run catalog:validate",
+    "prebuild": "npm run validate",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -14,7 +16,7 @@
     "test": "node -e \"require('fs').rmSync('.tmp-tests',{recursive:true,force:true})\" && tsc -p tsconfig.tests.json && node --test .tmp-tests/tests/catalog-parser.test.js .tmp-tests/tests/service-search.test.js",
     "catalog:validate": "node -e \"require('fs').rmSync('.tmp-tools',{recursive:true,force:true})\" && tsc -p tsconfig.tools.json && node .tmp-tools/scripts/catalog-report.js --validate",
     "catalog:stats": "node -e \"require('fs').rmSync('.tmp-tools',{recursive:true,force:true})\" && tsc -p tsconfig.tools.json && node .tmp-tools/scripts/catalog-report.js",
-    "check": "npm run typecheck && npm test && npm run catalog:validate && npm run build"
+    "check": "npm run validate && next build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.699.0",
