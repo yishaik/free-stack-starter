@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { safeRedirectPath } from '@/lib/safe-redirect'
 import { login, signup } from './actions'
 
 export default function LoginPage({ searchParams }: {
@@ -11,7 +12,7 @@ async function LoginForm({ searchParams }: {
   searchParams: Promise<{ error?: string; message?: string; next?: string }>
 }) {
   const sp = await searchParams
-  const next = sp.next?.startsWith('/') && !sp.next.startsWith('//') ? sp.next : '/dashboard'
+  const next = safeRedirectPath(sp.next)
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">

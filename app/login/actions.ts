@@ -2,11 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { safeRedirectPath } from '@/lib/safe-redirect'
 import { createClient } from '@/lib/supabase/server'
 
 function safeNext(formData: FormData) {
-  const candidate = String(formData.get('next') || '')
-  return candidate.startsWith('/') && !candidate.startsWith('//') ? candidate : '/dashboard'
+  return safeRedirectPath(formData.get('next'))
 }
 
 function loginUrl(params: Record<string, string>) {

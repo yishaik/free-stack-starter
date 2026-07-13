@@ -152,11 +152,22 @@ export async function POST(request: NextRequest) {
 
   try {
     const stack = await getOrCreateDefaultStack(auth.supabase, auth.user.id)
-    const rows = requested.map((serviceId) => ({ stack_id: stack.id, service_id: serviceId }))
-    const { error } = await auth.supabase
-      .from('stack_services')
-      .upsert(rows, { onConflict: 'stack_id,service_id', ignoreDuplicates: true })
-    if (error) throw error
+
+    // Enforce the cap against the resulting total, not just this batch — otherwise
+    // repeated smaller POSTs could grow a stack past MAX_STACK_SERVICES.
+    const currentServiceIds = await readServiceIds(auth.supabase, stack.id)
+    const newServiceIds = requested.filter((serviceId) => !currentServiceIds.includes(serviceId))
+    if (currentServiceIds.length + newServiceIds.length > MAX_STACK_SERVICES) {
+      return json(requestId, { error: `My Stack cannot exceed ${MAX_STACK_SERVICES} services.` }, 400)
+    }
+
+    if (newServiceIds.length) {
+      const rows = newServiceIds.map((serviceId) => ({ stack_id: stack.id, service_id: serviceId }))
+      const { error } = await auth.supabase
+        .from('stack_services')
+        .upsert(rows, { onConflict: 'stack_id,service_id', ignoreDuplicates: true })
+      if (error) throw error
+    }
 
     const serviceIds = await readServiceIds(auth.supabase, stack.id)
     return json(requestId, { stack, serviceIds, mode: 'account' })
