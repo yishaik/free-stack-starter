@@ -36,7 +36,7 @@ export function MyStackView() {
         </div>
         <div className="flex items-center gap-3 text-sm">
           {syncing && <span className="text-muted">Syncing…</span>}
-          {mode === 'local' && <Link href="/login" className="rounded-xl border border-line px-4 py-2 font-semibold text-ink hover:border-accent">Sign in to sync</Link>}
+          {mode === 'local' && <Link href="/login?next=/my-stack" className="rounded-xl border border-line px-4 py-2 font-semibold text-ink hover:border-accent">Sign in to sync</Link>}
           <Link href="/#directory" className="rounded-xl bg-accent px-4 py-2 font-semibold text-[#06111a]">Browse services</Link>
         </div>
       </div>
