@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "incremental": false,
+    "outDir": ".tmp-tests",
+    "rootDir": ".",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "isolatedModules": false,
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": [
+    "lib/catalog-parser.ts",
+    "lib/service-search.ts",
+    "lib/live-testers.ts",
+    "tests/**/*.ts"
+  ]
+}
