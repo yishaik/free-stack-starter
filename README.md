@@ -166,6 +166,7 @@ When Supabase admin credentials are configured, the endpoint calls an atomic `co
 3. Copy `.env.example` to `.env.local`.
 4. Add the project URL, anon key, service-role key, and a random `RATE_LIMIT_SECRET`.
 5. Configure the production `NEXT_PUBLIC_SITE_URL` exactly.
+6. In **Authentication → URL Configuration**, set the **Site URL** to your production origin and add `<origin>/auth/callback` to **Redirect URLs** (e.g. `https://your-app.vercel.app/auth/callback`). The signup confirmation email links back through `NEXT_PUBLIC_SITE_URL`/`auth/callback`; Supabase only honors that redirect if it is allowlisted here, otherwise it falls back to the Site URL — which is why an unset Site URL produces `localhost` links.
 
 Generate a rate-limit secret with:
 
