@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { AgentAccessBox } from '@/components/AgentAccessBox'
+import { useMyStack } from '@/components/MyStackProvider'
 import { LIVE_TESTER_SET } from '@/lib/live-testers'
 import { getAudienceLabel, getPlanCopy, type Service } from '@/lib/services'
 
@@ -57,6 +58,8 @@ export function ServiceCard({ service, onTagSelect }: {
   onTagSelect: (tag: string) => void
 }) {
   const [copied, setCopied] = useState(false)
+  const { isSaved, toggleService, syncing } = useMyStack()
+  const saved = isSaved(service.id)
   const live = Boolean(service.testerId && LIVE_TESTER_SET.has(service.testerId))
   const visibleTags = service.tags.slice(0, 7)
   const extraTags = service.tags.slice(7)
@@ -80,6 +83,18 @@ export function ServiceCard({ service, onTagSelect }: {
             {CATEGORY_ICONS[service.category] || '◌'}
           </div>
           <div className="flex flex-wrap justify-end gap-1.5">
+            <button
+              type="button"
+              disabled={syncing}
+              onClick={() => void toggleService(service.id)}
+              aria-pressed={saved}
+              className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold transition disabled:cursor-wait disabled:opacity-60 ${saved
+                ? 'border-accent bg-accent/15 text-accent'
+                : 'border-line bg-bg text-muted hover:border-accent/50 hover:text-ink'}`}
+              title={saved ? 'Remove from My Stack' : 'Save to My Stack'}
+            >
+              {saved ? '★ Saved' : '☆ Save'}
+            </button>
             <span className="rounded-full border border-line bg-bg px-2.5 py-1 text-[10px] font-medium text-muted">{service.plan}</span>
             {live && (
               <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
