@@ -183,8 +183,9 @@ export function parseCatalog(source: string, options: {
   defaultLastVerified: string
   defaultSource?: string
 }): Service[] {
-  return source.trim().split('\n').filter(Boolean).map((line, index) => {
+  return source.trim().split('\n').filter((line) => line.trim()).map((line, index) => {
     const rowNumber = index + 1
+    const fields = line.split('|').map((field) => field.trim())
     const [
       name,
       categoryCode,
@@ -199,7 +200,7 @@ export function parseCatalog(source: string, options: {
       rawSource = '',
       rawPlatforms = '',
       rawDeployment = '',
-    ] = line.split('|')
+    ] = fields
 
     const category = CATEGORY[categoryCode]
     const plan = PLAN_CODE[planCode]
@@ -210,10 +211,10 @@ export function parseCatalog(source: string, options: {
     assertHttpUrl(signup, 'signup', rowNumber)
     assertHttpUrl(docs, 'docs', rowNumber)
 
-    const lastVerified = rawLastVerified || options.defaultLastVerified
+    const lastVerified = rawLastVerified || options.defaultLastVerified.trim()
     assertDate(lastVerified, rowNumber)
 
-    const sourceUrl = rawSource || options.defaultSource || DEFAULT_SOURCE
+    const sourceUrl = rawSource || options.defaultSource?.trim() || DEFAULT_SOURCE
     assertHttpUrl(sourceUrl, 'source', rowNumber)
 
     const baseTags = parseList(rawTags).map((tag) => tag.toLowerCase())
