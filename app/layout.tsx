@@ -6,11 +6,11 @@ export const metadata: Metadata = {
     default: 'Free Stack Directory',
     template: '%s · Free Stack Directory',
   },
-  description: 'A comprehensive directory of free developer services, design tools, APIs and open-source building blocks, with a secure API-key tester.',
+  description: 'Discover hundreds of free developer and design services, safely test credentials, and connect coding agents through official provider tooling.',
   metadataBase: new URL('https://free-stack-starter.vercel.app'),
   openGraph: {
     title: 'Free Stack Directory',
-    description: 'Hundreds of free services for developers and designers, plus a secure API-key tester.',
+    description: 'Free services for developers and designers, secure credential checks, and copyable agent-access setup prompts.',
     type: 'website',
   },
 }

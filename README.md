@@ -1,99 +1,133 @@
-# Free Stack Starter
+# Free Stack Directory
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyishaik%2Ffree-stack-starter)
 [![Live demo](https://img.shields.io/badge/demo-live-34d399?logo=vercel&logoColor=white)](https://free-stack-starter.vercel.app)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22d3ee.svg)](LICENSE)
 [![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
-[![Cost](https://img.shields.io/badge/cost-%240%2Fmo-8b5cf6.svg)](docs/STACK-GUIDE.md)
+[![Catalog](https://img.shields.io/badge/catalog-348%20services-8b5cf6.svg)](https://free-stack-starter.vercel.app/#directory)
 
-A **$0/month** side-project starter that scales to **thousands of users** with no monthly bill —
-and no lock-in. Clone it, add your keys, deploy to Vercel. **Live demo → https://free-stack-starter.vercel.app**
+A searchable directory of free tiers, open-source tools, design resources, APIs, and developer platforms. It helps builders discover services, review official setup documentation, safely validate credentials, and give coding agents provider-specific access instructions.
 
-> **The stack:** [Next.js](https://nextjs.org) on [Vercel](https://vercel.com) · [Supabase](https://supabase.com) (Postgres + Auth) · [Resend](https://resend.com) (email) · [Sentry](https://sentry.io) (errors) · [Cloudflare R2](https://developers.cloudflare.com/r2/) (storage) · [Cloudflare Registrar](https://www.cloudflare.com/products/registrar/) (domain) · optional [Hugging Face](https://huggingface.co/) models, datasets, Spaces, and inference.
->
-> Full comparison + reasoning: **[docs/STACK-GUIDE.md](docs/STACK-GUIDE.md)**. AI free-tier guide: **[docs/HUGGING-FACE-FREE.md](docs/HUGGING-FACE-FREE.md)**.
+**Live site:** https://free-stack-starter.vercel.app
 
-## Why it's free at scale
+## What the site includes
 
-The thing that breaks free tiers is **egress/bandwidth** and **DB size**, not user count. This
-stack removes both: **R2 has zero egress**, Vercel's CDN serves the app globally, a 500 MB
-Postgres holds thousands of users' data, auth is free to ~50k MAU, and transactional email stays
-inside Resend's free 3k/mo. Every layer is managed (no DevOps) and portable (no lock-in).
+- **348 services across 18 categories** — hosting, databases, AI, design, observability, security, automation, payments, storage, and more.
+- **Search and filters** — category, audience, free-plan model, and API-key support.
+- **Official provider links** — every card links to the provider's sign-up flow and documentation.
+- **Agent access prompts** — every service has a copyable prompt that asks a coding agent to install and configure the provider's official MCP server or CLI, with an official SDK/API fallback when neither exists.
+- **Credential workbench** — common providers receive a live, read-only key validation; other services receive a setup checklist or no-key guide.
+- **In-app documentation** — usage, security, data model, and contribution guidance at [`/docs`](https://free-stack-starter.vercel.app/docs).
 
-AI is treated differently: Hugging Face's free layer is excellent for discovery, demos, local
-models, and lightweight API validation, but production inference should be budgeted separately.
+## Routes
 
-## What's wired
+| Route | Purpose |
+|---|---|
+| `/` | Searchable service directory and provider cards |
+| `/docs` | Product usage, agent-access, security, and contribution documentation |
+| `/test-keys` | Credential setup and read-only API-key validation |
+| `/api/test-key` | Server-side credential validation endpoint used by the workbench |
 
-- **Auth** — email/password via Supabase, session refresh in `middleware.ts`, a protected `/dashboard`.
-- **Database** — Postgres with **Row-Level Security ON** (`supabase/schema.sql`), server + browser clients via `@supabase/ssr`.
-- **Email** — `POST /api/send-email` sends a transactional email to the signed-in user via Resend.
-- **Storage** — `POST /api/upload` returns a short-lived presigned URL; the browser PUTs straight to R2 (zero egress). Demo UI on the dashboard.
-- **Errors** — Sentry wired for client/server/edge; no-op until you add a DSN.
-- **UI** — Tailwind, dark theme.
-- **AI guidance** — a curated Hugging Face free-tier guide with Spaces, local models, datasets, architecture, API setup, and production cautions.
+## Agent access workflow
 
-## Quick start
+Each service card includes a **Give an agent access** panel. The generated prompt contains the service name, official documentation URL, and account setup URL, then instructs the agent to:
+
+1. Prefer a provider-maintained official MCP server.
+2. Fall back to the provider's official CLI.
+3. Use the official SDK or API only when no official MCP or CLI exists.
+4. Start with read-only, least-privileged permissions.
+5. Keep credentials out of chat, source control, shell history, and generated files.
+6. Run a harmless verification command and report what was installed and configured.
+
+Install commands are intentionally resolved from current official documentation instead of being hard-coded in the catalog. This reduces stale package names and protects against unofficial look-alike packages.
+
+## Credential security
+
+The credential tester is designed as a setup utility, not a secret store.
+
+- Tokens are submitted to a server-side route and are not stored by the application.
+- Live tests use fixed, provider-specific, read-only identity or account endpoints.
+- Users cannot supply arbitrary target URLs, preventing SSRF through the tester.
+- Redirects are refused.
+- Request bodies are capped and requests are rate-limited.
+- Unsupported providers receive a format/setup guide instead of an unsafe generic request.
+
+Use test or least-privileged credentials whenever possible. Review the implementation in `app/api/test-key/route.ts` and `lib/test-runner.ts` before operating a public deployment.
+
+## Local development
 
 ```bash
-git clone <this-repo> my-app && cd my-app
+git clone https://github.com/yishaik/free-stack-starter.git
+cd free-stack-starter
 npm install
-cp .env.example .env.local     # then fill in the values below
-npm run dev                    # http://localhost:3000
+npm run dev
 ```
 
-The landing page renders **without any keys**. Add them to unlock each feature:
+Open http://localhost:3000. The directory and documentation render without provider credentials.
 
-| Service | Get keys | Env vars |
-|---|---|---|
-| Supabase | Project → Settings → API | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
-| Resend | resend.com → API Keys | `RESEND_API_KEY`, `EMAIL_FROM` |
-| Sentry | Project → Client Keys (DSN) | `NEXT_PUBLIC_SENTRY_DSN` (+ optional `SENTRY_*`) |
-| Cloudflare R2 | Dashboard → R2 → API Tokens | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_BASE_URL` |
-| Hugging Face (optional) | Settings → Access Tokens | `HF_TOKEN` — server-side only |
-
-Then run the DB schema: open Supabase → **SQL Editor** → paste `supabase/schema.sql` → Run.
-That creates a `profiles` table with RLS and an auto-insert trigger on signup.
-
-## Deploy (free)
-
-1. Push to GitHub.
-2. Import the repo into **Vercel** → it autodetects Next.js.
-3. Add the same env vars in **Vercel → Settings → Environment Variables**.
-4. Deploy. Add a custom domain (DNS on Cloudflare) → free SSL.
-
-Inbound email: set up **Cloudflare Email Routing** to forward `hello@yourdomain` → your inbox.
-
-## Project layout
-
-```
-app/                         App Router — landing, /login, /dashboard, /api/*
-components/                  client components (upload demo)
-lib/supabase/                browser + server + middleware clients (@supabase/ssr)
-lib/resend.ts                transactional email helper
-lib/r2.ts                    S3-compatible R2 client + presigned uploads
-supabase/schema.sql          example table + RLS policies
-sentry.*.config.ts           Sentry per-runtime init
-docs/STACK-GUIDE.md          full free-stack comparison + reasoning
-docs/HUGGING-FACE-FREE.md    AI models, Spaces, datasets, API limits + architecture
-```
-
-## Scripts
+### Validation
 
 ```bash
-npm run dev        # local dev
-npm run build      # production build
-npm run typecheck  # tsc --noEmit
-npm run lint       # next lint
+npm run typecheck
+npm run build
 ```
 
-## No lock-in (escape hatches)
+## Project structure
 
-- Supabase is *just Postgres* → `pg_dump` to Neon / Railway / RDS.
-- Vercel → Cloudflare Pages / Netlify (it's a Next.js app).
-- R2 is S3-compatible → swap the endpoint to Backblaze B2 / S3.
-- Hugging Face models can run locally or move to another inference provider when licensing permits.
+```text
+app/
+  page.tsx                    Directory landing page
+  docs/page.tsx               In-app documentation
+  test-keys/page.tsx          Credential workbench
+  api/test-key/route.ts       Rate-limited server-side validation
+components/
+  ServiceDirectory.tsx        Search, filters, pagination, and service cards
+  AgentAccessBox.tsx          Copyable official-tooling prompt
+  KeyTester.tsx               Credential-testing interface
+  SiteHeader.tsx              Shared navigation
+lib/
+  catalog-a.ts ... catalog-d.ts  Pipe-delimited service catalog
+  services.ts                 Catalog parser, types, categories, and sorting
+  agent-access.ts             Service-specific agent prompt generator
+  live-testers.ts             Providers with supported live checks
+  test-runner.ts              Fixed provider validation implementations
+```
+
+## Catalog format
+
+Services live in `lib/catalog-a.ts` through `lib/catalog-d.ts`. Each row follows this format:
+
+```text
+Name|category|audience|plan|summary|signup|docs|tag1,tag2|testerId
+```
+
+The parser in `lib/services.ts` validates required fields, generates stable IDs, rejects duplicates, and sorts the complete directory alphabetically.
+
+### Codes
+
+- **Audience:** `d` developers, `g` designers, `b` both.
+- **Plan:** `f` permanent free tier, `o` open source, `c` starter credits/trial, `s` free for qualifying OSS projects.
+- **Category:** mapped in `lib/services.ts` to the existing site categories.
+- **Tester ID:** optional; include it only when the credential workbench has a corresponding setup or validation implementation.
+
+## Contributing a service
+
+1. Add a unique row to the appropriate catalog file.
+2. Use the provider's official sign-up and documentation URLs.
+3. Avoid fragile quota numbers in the summary; free-tier limits change frequently.
+4. Add accurate capability tags for search.
+5. Run `npm run typecheck` and `npm run build`.
+6. Open a pull request describing the provider, free model, and source used to verify it.
+
+The generated agent-access feature applies automatically to every valid catalog entry, so no separate prompt content is required.
+
+## Deployment
+
+The app is a standard Next.js project and can be deployed to Vercel or another compatible platform.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyishaik%2Ffree-stack-starter)
+
+For a public credential tester, use a shared rate limiter such as Redis rather than relying only on the included in-memory limiter, and review your hosting provider's logging configuration to ensure request bodies are never captured.
 
 ## License
 
-[MIT](LICENSE). Use it for anything.
+[MIT](LICENSE)

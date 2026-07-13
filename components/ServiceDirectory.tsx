@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
+import { AgentAccessBox } from '@/components/AgentAccessBox'
 import { AUDIENCES, CATEGORIES, PLANS, SERVICES, getPlanCopy, type Audience, type PlanType } from '@/lib/services'
 import { LIVE_TESTER_SET } from '@/lib/live-testers'
 
@@ -153,6 +154,9 @@ export function ServiceDirectory() {
                     {service.actionLabel} <span aria-hidden>↗</span>
                   </span>
                 </a>
+                <div className="border-t border-line px-5 py-3 text-xs">
+                  <AgentAccessBox service={service} />
+                </div>
                 <div className="flex items-center justify-between border-t border-line px-5 py-3 text-xs">
                   <span className="text-muted">{service.category} · {service.audience}</span>
                   <div className="flex gap-3">
