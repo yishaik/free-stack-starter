@@ -6,6 +6,7 @@ import { SiteHeader } from '@/components/SiteHeader'
 export const metadata: Metadata = {
   title: 'My Stack',
   description: 'Save and compare services from Free Stack Directory, locally or synced securely with Supabase.',
+  robots: { index: false, follow: false },
 }
 
 export default function MyStackPage() {
