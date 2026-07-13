@@ -31,14 +31,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Unit tests
-        run: npm test
-
-      - name: Validate catalog
-        run: npm run catalog:validate
-
-      - name: Production build
-        run: npm run build
+      - name: Validate and build
+        run: npm run check
