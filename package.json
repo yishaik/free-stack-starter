@@ -2,7 +2,7 @@
   "name": "free-stack-starter",
   "version": "1.0.0",
   "private": true,
-  "description": "A $0 side-project starter: Next.js on Vercel + Supabase + Resend + Sentry + Cloudflare R2. Scales to thousands of users with no monthly bill.",
+  "description": "A curated directory of free and open-source tools for development, DevOps, IT, design, data and productivity — built as a real $0 stack example.",
   "license": "MIT",
   "engines": { "node": ">=18.18" },
   "scripts": {
@@ -10,7 +10,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node -e \"require('fs').rmSync('.tmp-tests',{recursive:true,force:true})\" && tsc -p tsconfig.tests.json && node --test .tmp-tests/tests/catalog-parser.test.js .tmp-tests/tests/service-search.test.js",
+    "catalog:validate": "node -e \"require('fs').rmSync('.tmp-tools',{recursive:true,force:true})\" && tsc -p tsconfig.tools.json && node .tmp-tools/scripts/catalog-report.js --validate",
+    "catalog:stats": "node -e \"require('fs').rmSync('.tmp-tools',{recursive:true,force:true})\" && tsc -p tsconfig.tools.json && node .tmp-tools/scripts/catalog-report.js",
+    "check": "npm run typecheck && npm test && npm run catalog:validate && npm run build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.699.0",
