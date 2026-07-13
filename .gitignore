@@ -11,6 +11,10 @@ next-env.d.ts
 # production
 /build
 
+# generated validation output
+/.tmp-tests/
+/.tmp-tools/
+
 # secrets — NEVER commit real env values (use .env.example as the template)
 .env
 .env*.local

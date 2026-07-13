@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "incremental": false,
+    "outDir": ".tmp-tools",
+    "rootDir": ".",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "isolatedModules": false,
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": [
+    "lib/catalog-*.ts",
+    "lib/services.ts",
+    "lib/live-testers.ts",
+    "scripts/**/*.ts"
+  ]
+}

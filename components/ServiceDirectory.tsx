@@ -1,185 +1,304 @@
 'use client'
 
-import Link from 'next/link'
-import { useMemo, useState } from 'react'
-import { AgentAccessBox } from '@/components/AgentAccessBox'
-import { AUDIENCES, CATEGORIES, PLANS, SERVICES, getPlanCopy, type Audience, type PlanType } from '@/lib/services'
-import { LIVE_TESTER_SET } from '@/lib/live-testers'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ServiceCard } from '@/components/ServiceCard'
+import {
+  AUDIENCES,
+  AUDIENCE_COUNTS,
+  CATEGORIES,
+  CATEGORY_COUNTS,
+  PLANS,
+  SERVICES,
+  TAGS,
+  type Audience,
+  type PlanType,
+} from '@/lib/services'
+import {
+  DEFAULT_FILTERS,
+  filterServices,
+  getPopularTags,
+  parseFilters,
+  serializeFilters,
+  type ServiceFilters,
+  type SortMode,
+} from '@/lib/service-search'
 
-const PAGE_SIZE = 72
+const PAGE_SIZE = 48
 
-const CATEGORY_ICONS: Record<string, string> = {
-  'Hosting & Deploy': '▲',
-  'Database & Backend': 'DB',
-  'Storage & Media': '◫',
-  Authentication: 'ID',
-  Security: '◆',
-  'AI & ML': 'AI',
-  'Search & Vector': '⌕',
-  'Email & Messaging': '✉',
-  'Observability & Analytics': '◉',
-  'Developer Tools': '</>',
-  'Testing & QA': '✓',
-  'Automation & Forms': '↯',
-  'CMS & Content': '¶',
-  'Design & Creative': '✦',
-  'Design Assets': '◇',
-  'Maps & Data APIs': '⌖',
-  'Payments & Commerce': '$',
-  Accessibility: 'A11Y',
+function useDebouncedValue<T>(value: T, delay: number) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay)
+    return () => window.clearTimeout(timer)
+  }, [value, delay])
+  return debounced
 }
 
-function Select({ value, onChange, label, children }: {
-  value: string
-  onChange: (value: string) => void
-  label: string
+function toggleValue<T extends string>(items: T[], value: T) {
+  return items.includes(value) ? items.filter((item) => item !== value) : [...items, value]
+}
+
+function FilterChip({ active, children, onClick, title }: {
+  active: boolean
   children: React.ReactNode
+  onClick: () => void
+  title?: string
 }) {
   return (
-    <label className="grid gap-1.5 text-xs font-medium text-muted">
-      {label}
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-10 rounded-xl border border-line bg-panel px-3 text-sm text-ink outline-none transition focus:border-accent"
-      >
-        {children}
-      </select>
-    </label>
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${active
+        ? 'border-accent bg-accent/15 text-accent'
+        : 'border-line bg-bg text-muted hover:border-accent/50 hover:text-ink'}`}
+    >
+      {children}
+    </button>
   )
 }
 
+function ActiveChip({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
+  return (
+    <button type="button" onClick={onRemove} className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:border-accent">
+      {children}<span aria-hidden>×</span>
+    </button>
+  )
+}
+
+const QUICK_AUDIENCES: Audience[] = ['DevOps', 'IT', 'Productivity']
+
 export function ServiceDirectory() {
-  const [query, setQuery] = useState('')
-  const [category, setCategory] = useState('All')
-  const [audience, setAudience] = useState<'All' | Audience>('All')
-  const [plan, setPlan] = useState<'All' | PlanType>('All')
-  const [keyMode, setKeyMode] = useState('All')
+  const [filters, setFilters] = useState<ServiceFilters>(DEFAULT_FILTERS)
+  const [searchInput, setSearchInput] = useState('')
+  const [tagSearch, setTagSearch] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [visible, setVisible] = useState(PAGE_SIZE)
+  const [urlReady, setUrlReady] = useState(false)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+  const debouncedQuery = useDebouncedValue(searchInput, 240)
+  const popularTags = useMemo(() => getPopularTags(SERVICES, 36), [])
 
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
-    return SERVICES.filter((service) => {
-      const searchable = `${service.name} ${service.summary} ${service.category} ${service.tags.join(' ')}`.toLowerCase()
-      const audienceMatch = audience === 'All' || service.audience === audience || service.audience === 'Both'
-      const keyMatch = keyMode === 'All'
-        || (keyMode === 'Live test' && Boolean(service.testerId && LIVE_TESTER_SET.has(service.testerId)))
-        || (keyMode === 'Credential guide' && Boolean(service.testerId && !LIVE_TESTER_SET.has(service.testerId)))
-        || (keyMode === 'No key' && !service.testerId)
-      return (!normalized || searchable.includes(normalized))
-        && (category === 'All' || service.category === category)
-        && audienceMatch
-        && (plan === 'All' || service.plan === plan)
-        && keyMatch
-    })
-  }, [query, category, audience, plan, keyMode])
+  useEffect(() => {
+    const applyLocation = () => {
+      const next = parseFilters(window.location.search, {
+        categories: CATEGORIES,
+        audiences: AUDIENCES,
+        plans: PLANS,
+        tags: TAGS,
+      })
+      setFilters(next)
+      setSearchInput(next.query)
+      setVisible(PAGE_SIZE)
+    }
+    applyLocation()
+    setUrlReady(true)
+    window.addEventListener('popstate', applyLocation)
+    return () => window.removeEventListener('popstate', applyLocation)
+  }, [])
 
+  useEffect(() => {
+    setFilters((current) => current.query === debouncedQuery ? current : { ...current, query: debouncedQuery })
+  }, [debouncedQuery])
+
+  useEffect(() => {
+    if (!urlReady) return
+    const query = serializeFilters(filters)
+    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
+    window.history.replaceState(null, '', nextUrl)
+  }, [filters, urlReady])
+
+  useEffect(() => setVisible(PAGE_SIZE), [filters])
+
+  const filtered = useMemo(() => filterServices(SERVICES, filters), [filters])
   const shown = filtered.slice(0, visible)
-  const activeFilters = [query, category !== 'All', audience !== 'All', plan !== 'All', keyMode !== 'All'].filter(Boolean).length
+
+  useEffect(() => {
+    const node = loadMoreRef.current
+    if (!node || visible >= filtered.length) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) setVisible((count) => Math.min(count + PAGE_SIZE, filtered.length))
+    }, { rootMargin: '500px 0px' })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [visible, filtered.length])
+
+  const activeCount = filters.categories.length
+    + filters.audiences.length
+    + filters.plans.length
+    + filters.tags.length
+    + Number(filters.liveOnly)
+
+  const availableTags = useMemo(() => {
+    const normalized = tagSearch.trim().toLowerCase()
+    const source = normalized
+      ? TAGS.filter((tag) => tag.includes(normalized)).slice(0, 40).map((tag) => [tag, SERVICES.filter((service) => service.tags.includes(tag)).length] as const)
+      : popularTags
+    return source
+  }, [tagSearch, popularTags])
+
+  function patch(next: Partial<ServiceFilters>) {
+    setFilters((current) => ({ ...current, ...next }))
+  }
 
   function reset() {
-    setQuery('')
-    setCategory('All')
-    setAudience('All')
-    setPlan('All')
-    setKeyMode('All')
+    setFilters(DEFAULT_FILTERS)
+    setSearchInput('')
+    setTagSearch('')
     setVisible(PAGE_SIZE)
+  }
+
+  function selectTag(tag: string) {
+    patch({ tags: filters.tags.includes(tag) ? filters.tags : [...filters.tags, tag] })
+    document.getElementById('directory')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
     <section className="mt-10">
-      <div className="sticky top-3 z-20 rounded-2xl border border-line bg-bg/95 p-4 shadow-2xl shadow-black/20 backdrop-blur">
-        <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_repeat(4,minmax(130px,180px))]">
+      <div className="sticky top-2 z-20 rounded-2xl border border-line bg-bg/95 p-4 shadow-xl shadow-black/5 backdrop-blur dark:shadow-black/20">
+        <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_190px_auto]">
           <label className="grid gap-1.5 text-xs font-medium text-muted">
-            Search all services
-            <input
-              value={query}
-              onChange={(event) => { setQuery(event.target.value); setVisible(PAGE_SIZE) }}
-              placeholder="Search Postgres, icons, email, vector…"
-              className="h-10 rounded-xl border border-line bg-panel px-4 text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-accent"
-            />
+            Search services, capabilities and tags
+            <div className="relative">
+              <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">⌕</span>
+              <input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Try Kubernetes, backup, CRM, diagrams…"
+                className="h-11 w-full rounded-xl border border-line bg-panel pl-9 pr-10 text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-accent"
+              />
+              {searchInput && (
+                <button type="button" onClick={() => setSearchInput('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink">×</button>
+              )}
+            </div>
           </label>
-          <Select value={category} onChange={(value) => { setCategory(value); setVisible(PAGE_SIZE) }} label="Category">
-            <option>All</option>
-            {CATEGORIES.map((item) => <option key={item}>{item}</option>)}
-          </Select>
-          <Select value={audience} onChange={(value) => { setAudience(value as 'All' | Audience); setVisible(PAGE_SIZE) }} label="Audience">
-            <option>All</option>
-            {AUDIENCES.map((item) => <option key={item}>{item}</option>)}
-          </Select>
-          <Select value={plan} onChange={(value) => { setPlan(value as 'All' | PlanType); setVisible(PAGE_SIZE) }} label="Free model">
-            <option>All</option>
-            {PLANS.map((item) => <option key={item}>{item}</option>)}
-          </Select>
-          <Select value={keyMode} onChange={(value) => { setKeyMode(value); setVisible(PAGE_SIZE) }} label="API-key support">
-            <option>All</option>
-            <option>Live test</option>
-            <option>Credential guide</option>
-            <option>No key</option>
-          </Select>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
-          <span className="text-muted"><strong className="text-ink">{filtered.length}</strong> services match</span>
-          {activeFilters > 0 && (
-            <button onClick={reset} className="rounded-lg border border-line px-3 py-1.5 text-muted hover:border-accent hover:text-ink">
-              Clear filters
+
+          <label className="grid gap-1.5 text-xs font-medium text-muted">
+            Sort results
+            <select
+              value={filters.sort}
+              onChange={(event) => patch({ sort: event.target.value as SortMode })}
+              className="h-11 rounded-xl border border-line bg-panel px-3 text-sm text-ink outline-none focus:border-accent"
+            >
+              <option value="relevance">Best match</option>
+              <option value="name">Name</option>
+              <option value="recently-verified">Recently verified</option>
+              <option value="open-source">Open source first</option>
+              <option value="live-test">Live key tests first</option>
+            </select>
+          </label>
+
+          <div className="grid content-end">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((open) => !open)}
+              className="h-11 rounded-xl border border-line bg-panel px-4 text-sm font-semibold text-ink hover:border-accent"
+              aria-expanded={filtersOpen}
+            >
+              {filtersOpen ? 'Hide filters' : 'More filters'}{activeCount ? ` · ${activeCount}` : ''}
             </button>
-          )}
+          </div>
         </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <FilterChip active={filters.plans.includes('Open source')} onClick={() => patch({ plans: toggleValue(filters.plans, 'Open source') })}>Open source</FilterChip>
+          <FilterChip active={filters.liveOnly} onClick={() => patch({ liveOnly: !filters.liveOnly })}>Live key test</FilterChip>
+          {QUICK_AUDIENCES.map((audience) => (
+            <FilterChip key={audience} active={filters.audiences.includes(audience)} onClick={() => patch({ audiences: toggleValue(filters.audiences, audience) })}>
+              {audience} · {AUDIENCE_COUNTS.get(audience)}
+            </FilterChip>
+          ))}
+        </div>
+
+        {filtersOpen && (
+          <div className="mt-4 grid gap-5 border-t border-line pt-4">
+            <fieldset>
+              <legend className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">Categories</legend>
+              <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto pr-2">
+                {CATEGORIES.map((category) => (
+                  <FilterChip key={category} active={filters.categories.includes(category)} onClick={() => patch({ categories: toggleValue(filters.categories, category) })}>
+                    {category} · {CATEGORY_COUNTS.get(category)}
+                  </FilterChip>
+                ))}
+              </div>
+            </fieldset>
+
+            <div className="grid gap-5 lg:grid-cols-2">
+              <fieldset>
+                <legend className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">Audience</legend>
+                <div className="flex flex-wrap gap-2">
+                  {AUDIENCES.map((audience) => (
+                    <FilterChip key={audience} active={filters.audiences.includes(audience)} onClick={() => patch({ audiences: toggleValue(filters.audiences, audience) })}>
+                      {audience} · {AUDIENCE_COUNTS.get(audience)}
+                    </FilterChip>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">Free model</legend>
+                <div className="flex flex-wrap gap-2">
+                  {PLANS.map((plan) => (
+                    <FilterChip key={plan} active={filters.plans.includes(plan)} onClick={() => patch({ plans: toggleValue(filters.plans, plan) })}>{plan}</FilterChip>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+
+            <fieldset>
+              <legend className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">Tags</legend>
+              <input
+                value={tagSearch}
+                onChange={(event) => setTagSearch(event.target.value.toLowerCase())}
+                placeholder="Find a tag…"
+                className="mb-3 h-10 w-full max-w-sm rounded-xl border border-line bg-panel px-3 text-sm text-ink outline-none placeholder:text-muted/60 focus:border-accent"
+              />
+              <div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto pr-2">
+                {availableTags.map(([tag, count]) => (
+                  <FilterChip key={tag} active={filters.tags.includes(tag)} onClick={() => patch({ tags: toggleValue(filters.tags, tag) })}>
+                    #{tag} · {count}
+                  </FilterChip>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3 text-sm">
+          <span className="text-muted"><strong className="text-ink">{filtered.length}</strong> of {SERVICES.length} services</span>
+          {(activeCount > 0 || filters.query) && <button type="button" onClick={reset} className="font-semibold text-accent hover:underline">Clear all</button>}
+        </div>
+
+        {(activeCount > 0) && (
+          <div className="mt-3 flex flex-wrap gap-2" aria-label="Active filters">
+            {filters.categories.map((category) => <ActiveChip key={category} onRemove={() => patch({ categories: filters.categories.filter((item) => item !== category) })}>{category}</ActiveChip>)}
+            {filters.audiences.map((audience) => <ActiveChip key={audience} onRemove={() => patch({ audiences: filters.audiences.filter((item) => item !== audience) })}>{audience}</ActiveChip>)}
+            {filters.plans.map((plan) => <ActiveChip key={plan} onRemove={() => patch({ plans: filters.plans.filter((item) => item !== plan) })}>{plan}</ActiveChip>)}
+            {filters.tags.map((tag) => <ActiveChip key={tag} onRemove={() => patch({ tags: filters.tags.filter((item) => item !== tag) })}>#{tag}</ActiveChip>)}
+            {filters.liveOnly && <ActiveChip onRemove={() => patch({ liveOnly: false })}>Live key test</ActiveChip>}
+          </div>
+        )}
       </div>
 
       {shown.length ? (
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {shown.map((service) => {
-            const live = Boolean(service.testerId && LIVE_TESTER_SET.has(service.testerId))
-            return (
-              <article key={service.id} className="group flex min-h-[270px] flex-col overflow-hidden rounded-2xl border border-line bg-panel/70 transition hover:-translate-y-0.5 hover:border-accent/70 hover:bg-panel">
-                <a href={service.signup} target="_blank" rel="noreferrer" className="flex flex-1 flex-col p-5 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="grid h-10 min-w-10 place-items-center rounded-xl border border-line bg-bg font-mono text-[11px] font-bold text-accent">
-                      {CATEGORY_ICONS[service.category] || '◌'}
-                    </div>
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      <span className="rounded-full border border-line px-2 py-1 text-[11px] text-muted">{service.plan}</span>
-                      {live && <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-300">Live key test</span>}
-                    </div>
-                  </div>
-                  <h2 className="mt-4 text-lg font-semibold tracking-tight group-hover:text-accent">{service.name}</h2>
-                  <p className="mt-2 flex-1 text-sm leading-6 text-muted">{service.summary}</p>
-                  <p className="mt-3 text-xs leading-5 text-muted/80">{getPlanCopy(service.plan)}</p>
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {service.tags.slice(0, 4).map((tag) => <span key={tag} className="rounded-md bg-bg px-2 py-1 text-[11px] text-muted">{tag}</span>)}
-                  </div>
-                  <span className="mt-5 inline-flex items-center gap-2 font-semibold text-accent">
-                    {service.actionLabel} <span aria-hidden>↗</span>
-                  </span>
-                </a>
-                <div className="border-t border-line px-5 py-3 text-xs">
-                  <AgentAccessBox service={service} />
-                </div>
-                <div className="flex items-center justify-between border-t border-line px-5 py-3 text-xs">
-                  <span className="text-muted">{service.category} · {service.audience}</span>
-                  <div className="flex gap-3">
-                    <a href={service.docs} target="_blank" rel="noreferrer" className="text-muted hover:text-ink">Docs</a>
-                    <Link href={`/test-keys?service=${service.id}`} className="font-medium text-ink hover:text-accent">Test setup</Link>
-                  </div>
-                </div>
-              </article>
-            )
-          })}
-        </div>
+        <>
+          <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {shown.map((service) => <ServiceCard key={service.id} service={service} onTagSelect={selectTag} />)}
+          </div>
+          <div ref={loadMoreRef} className="mt-8 flex min-h-14 items-center justify-center">
+            {visible < filtered.length && (
+              <button type="button" onClick={() => setVisible((count) => Math.min(count + PAGE_SIZE, filtered.length))} className="rounded-xl border border-line bg-panel px-5 py-3 text-sm font-semibold text-ink hover:border-accent">
+                Load {Math.min(PAGE_SIZE, filtered.length - visible)} more
+              </button>
+            )}
+          </div>
+        </>
       ) : (
-        <div className="mt-8 rounded-2xl border border-dashed border-line p-12 text-center">
-          <div className="text-lg font-semibold">No services match these filters.</div>
-          <button onClick={reset} className="mt-3 text-sm font-medium text-accent">Reset the directory</button>
-        </div>
-      )}
-
-      {visible < filtered.length && (
-        <div className="mt-8 text-center">
-          <button onClick={() => setVisible((count) => count + PAGE_SIZE)} className="rounded-xl border border-line bg-panel px-5 py-3 font-semibold hover:border-accent">
-            Load {Math.min(PAGE_SIZE, filtered.length - visible)} more
-          </button>
+        <div className="mt-8 rounded-2xl border border-dashed border-line bg-panel/40 p-10 text-center sm:p-16">
+          <div className="text-4xl" aria-hidden>⌕</div>
+          <h2 className="mt-4 text-xl font-bold text-ink">No services match this combination</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">Try a broader search, remove one of the tags, or clear the audience and category filters.</p>
+          <button type="button" onClick={reset} className="mt-5 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-[#06111a]">Clear all filters</button>
         </div>
       )}
     </section>
