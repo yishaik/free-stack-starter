@@ -20,10 +20,13 @@ test('accepts normalized public GitHub repository URLs', () => {
   )
 })
 
-test('rejects non-GitHub, credentialed, and nested repository URLs', () => {
+test('rejects non-GitHub, credentialed, queried, and nested repository URLs', () => {
   for (const value of [
     'http://github.com/owner/repo',
     'https://gitlab.com/owner/repo',
+    'https://user:token@github.com/owner/repo',
+    'https://github.com/owner/repo?tab=readme',
+    'https://github.com/owner/repo#readme',
     'https://github.com/owner/repo/issues',
     'https://github.com/owner',
     'not a url',
