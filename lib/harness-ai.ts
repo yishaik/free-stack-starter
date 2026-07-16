@@ -26,7 +26,7 @@ export async function summarizeHarnessRun(input: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: process.env.HARNESS_MODEL || 'google/gemini-2.5-flash-lite',
+        model: process.env.HARNESS_MODEL || 'alibaba/qwen3.5-flash',
         temperature: 0.1,
         max_tokens: 500,
         messages: [
