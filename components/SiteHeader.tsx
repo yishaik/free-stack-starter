@@ -13,8 +13,9 @@ export function SiteHeader() {
           <nav className="flex items-center gap-0.5 text-sm sm:gap-1" aria-label="Primary navigation">
             <Link href="/#directory" className="rounded-lg px-2 py-2 text-muted hover:bg-panel hover:text-ink sm:px-3">Services</Link>
             <Link href="/my-stack" className="rounded-lg px-2 py-2 font-medium text-ink hover:bg-panel hover:text-accent sm:px-3">My Stack</Link>
+            <Link href="/harness" className="rounded-lg px-2 py-2 text-muted hover:bg-panel hover:text-accent sm:px-3">Harness</Link>
             <Link href="/docs" className="hidden rounded-lg px-3 py-2 text-muted hover:bg-panel hover:text-ink md:inline-flex">Docs</Link>
-            <Link href="/test-keys" className="rounded-lg px-2 py-2 text-muted hover:bg-panel hover:text-ink sm:px-3"><span className="hidden lg:inline">API key </span>Tester</Link>
+            <Link href="/test-keys" className="hidden rounded-lg px-2 py-2 text-muted hover:bg-panel hover:text-ink lg:inline-flex"><span className="hidden xl:inline">API key </span>Tester</Link>
             <a href="https://github.com/yishaik/free-stack-starter" target="_blank" rel="noreferrer" className="hidden rounded-lg border border-line px-3 py-2 text-ink hover:border-accent xl:inline-flex">GitHub ↗</a>
           </nav>
           <ThemeToggle />
