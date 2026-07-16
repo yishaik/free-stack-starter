@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
+import { hasHarnessAccess } from '@/lib/harness-auth'
 import {
   commandForMode,
   normalizeGitRef,
@@ -9,7 +10,6 @@ import {
   truncateOutput,
 } from '@/lib/harness-core'
 import { summarizeHarnessRun } from '@/lib/harness-ai'
-import { createClient } from '@/lib/supabase/server'
 import { resolveVercelToken, runVercelSandbox } from '@/lib/vercel-sandbox-rest'
 
 export const runtime = 'nodejs'
@@ -17,6 +17,24 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 const MAX_BODY_BYTES = 16_384
+
+type HarnessStatus = 'running' | 'succeeded' | 'failed'
+
+type HarnessRun = {
+  id: string
+  repository: string
+  git_ref: string
+  mode: 'inspect' | 'test' | 'build'
+  task: string
+  status: HarnessStatus
+  exit_code: number | null
+  output: string | null
+  ai_summary: string | null
+  sandbox_id: string | null
+  created_at: string
+  started_at: string
+  finished_at: string | null
+}
 
 function json(requestId: string, body: unknown, status = 200) {
   return NextResponse.json(body, {
@@ -31,10 +49,6 @@ function json(requestId: string, body: unknown, status = 200) {
   })
 }
 
-function hasSupabaseConfig() {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-}
-
 function allowedOrigin(request: NextRequest) {
   const origin = request.headers.get('origin')
   if (!origin) return true
@@ -44,20 +58,6 @@ function allowedOrigin(request: NextRequest) {
     try { allowed.add(new URL(configured).origin) } catch { /* invalid deployment config */ }
   }
   return allowed.has(origin)
-}
-
-async function authenticated(requestId: string) {
-  if (!hasSupabaseConfig()) {
-    return { response: json(requestId, { error: 'Supabase authentication is not configured.' }, 503) }
-  }
-
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) {
-    return { response: json(requestId, { error: 'Sign in before running projects.' }, 401) }
-  }
-
-  return { supabase, user: data.user }
 }
 
 async function parseJson(request: NextRequest, requestId: string) {
@@ -78,27 +78,17 @@ async function parseJson(request: NextRequest, requestId: string) {
   }
 }
 
-export async function GET() {
-  const requestId = randomUUID()
-  const auth = await authenticated(requestId)
-  if ('response' in auth) return auth.response
-
-  const { data, error } = await auth.supabase
-    .from('harness_runs')
-    .select('id,repository,git_ref,mode,task,status,exit_code,output,ai_summary,sandbox_id,created_at,started_at,finished_at')
-    .order('created_at', { ascending: false })
-    .limit(20)
-
-  if (error) {
-    console.error('Harness history read failed', { requestId, message: error.message })
-    return json(requestId, { error: 'Harness database schema is unavailable.' }, 503)
-  }
-
-  return json(requestId, { runs: data || [] })
-}
-
 export async function POST(request: NextRequest) {
   const requestId = randomUUID()
+  const accessKey = process.env.HARNESS_ACCESS_KEY
+
+  if (!accessKey || accessKey.length < 24) {
+    return json(requestId, { error: 'Harness access is not configured. Set HARNESS_ACCESS_KEY in Vercel.' }, 503)
+  }
+  if (!hasHarnessAccess(accessKey, request.headers.get('authorization'))) {
+    return json(requestId, { error: 'The harness access key is invalid.' }, 401)
+  }
+
   const parsed = await parseJson(request, requestId)
   if ('response' in parsed) return parsed.response
 
@@ -117,39 +107,31 @@ export async function POST(request: NextRequest) {
   if (!gitRef) return json(requestId, { error: 'The Git ref is invalid.' }, 400)
   if (!mode) return json(requestId, { error: 'Mode must be inspect, test, or build.' }, 400)
 
-  const auth = await authenticated(requestId)
-  if ('response' in auth) return auth.response
-
   const token = resolveVercelToken(request.headers)
   if (!token) {
     return json(requestId, { error: 'Vercel Sandbox authentication is unavailable. Deploy on Vercel with OIDC or configure VERCEL_ACCESS_TOKEN.' }, 503)
   }
 
-  const command = commandForMode(mode)
-  const inserted = await auth.supabase
-    .from('harness_runs')
-    .insert({
-      user_id: auth.user.id,
-      repository,
-      git_ref: gitRef,
-      mode,
-      task,
-      command,
-      status: 'running',
-      started_at: new Date().toISOString(),
-    })
-    .select('id')
-    .single()
-
-  if (inserted.error || !inserted.data) {
-    console.error('Harness run insert failed', { requestId, message: inserted.error?.message })
-    return json(requestId, { error: 'Harness database schema is unavailable.' }, 503)
+  const id = randomUUID()
+  const startedAt = new Date().toISOString()
+  const baseRun: HarnessRun = {
+    id,
+    repository,
+    git_ref: gitRef,
+    mode,
+    task,
+    status: 'running',
+    exit_code: null,
+    output: null,
+    ai_summary: null,
+    sandbox_id: null,
+    created_at: startedAt,
+    started_at: startedAt,
+    finished_at: null,
   }
 
-  const runId = inserted.data.id as string
-
   try {
-    const result = await runVercelSandbox({ token, repository, gitRef, command })
+    const result = await runVercelSandbox({ token, repository, gitRef, command: commandForMode(mode) })
     const output = truncateOutput(result.output || 'Command completed without captured output.')
     const aiSummary = await summarizeHarnessRun({
       token,
@@ -161,41 +143,29 @@ export async function POST(request: NextRequest) {
       output,
     })
     const status = result.exitCode === 0 ? 'succeeded' : 'failed'
-    const finishedAt = new Date().toISOString()
+    const run: HarnessRun = {
+      ...baseRun,
+      status,
+      exit_code: result.exitCode,
+      output,
+      ai_summary: aiSummary,
+      sandbox_id: result.sandboxId,
+      finished_at: new Date().toISOString(),
+    }
 
-    const updated = await auth.supabase
-      .from('harness_runs')
-      .update({
-        status,
-        exit_code: result.exitCode,
-        output,
-        ai_summary: aiSummary,
-        sandbox_id: result.sandboxId,
-        finished_at: finishedAt,
-      })
-      .eq('id', runId)
-      .select('id,repository,git_ref,mode,task,status,exit_code,output,ai_summary,sandbox_id,created_at,started_at,finished_at')
-      .single()
-
-    if (updated.error || !updated.data) throw updated.error || new Error('Unable to persist run result.')
-    return json(requestId, { run: updated.data }, status === 'succeeded' ? 200 : 422)
+    return json(requestId, { run }, status === 'succeeded' ? 200 : 422)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown harness failure.'
-    const output = truncateOutput(message)
-    const aiSummary = `The harness could not complete the ${mode} run. ${message}`.slice(0, 4_000)
+    const run: HarnessRun = {
+      ...baseRun,
+      status: 'failed',
+      exit_code: 1,
+      output: truncateOutput(message),
+      ai_summary: `The harness could not complete the ${mode} run. ${message}`.slice(0, 4_000),
+      finished_at: new Date().toISOString(),
+    }
 
-    await auth.supabase
-      .from('harness_runs')
-      .update({
-        status: 'failed',
-        exit_code: 1,
-        output,
-        ai_summary: aiSummary,
-        finished_at: new Date().toISOString(),
-      })
-      .eq('id', runId)
-
-    console.error('Harness run failed', { requestId, runId, message })
-    return json(requestId, { error: message, runId }, 502)
+    console.error('Harness run failed', { requestId, runId: id, message })
+    return json(requestId, { error: message, run }, 502)
   }
 }
