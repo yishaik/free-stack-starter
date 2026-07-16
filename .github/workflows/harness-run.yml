@@ -1,0 +1,106 @@
+name: Project Harness
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: Public GitHub repository in owner/name format
+        required: true
+        default: yishaik/free-stack-starter
+        type: string
+      ref:
+        description: Branch, tag, or commit
+        required: true
+        default: main
+        type: string
+      mode:
+        description: Bounded operation to run
+        required: true
+        default: inspect
+        type: choice
+        options:
+          - inspect
+          - test
+          - build
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate repository input
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+          REF: ${{ inputs.ref }}
+        run: |
+          [[ "$REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "Invalid repository"; exit 2; }
+          [[ "$REF" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$ ]] || { echo "Invalid ref"; exit 2; }
+          [[ "$REF" != *..* && "$REF" != *//* ]] || { echo "Unsafe ref"; exit 2; }
+
+      - name: Check out requested project
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Node
+        if: ${{ hashFiles('package.json') != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+
+      - name: Inspect
+        if: ${{ inputs.mode == 'inspect' }}
+        run: |
+          printf 'Repository: '; git remote get-url origin || true
+          printf 'Commit: '; git rev-parse HEAD
+          find . -maxdepth 2 -type f -not -path './.git/*' | sort | head -200
+          if [ -f package.json ]; then
+            node -e "const p=require('./package.json'); console.log(JSON.stringify({name:p.name,engines:p.engines,scripts:p.scripts},null,2))"
+          fi
+
+      - name: Install Node dependencies
+        if: ${{ inputs.mode != 'inspect' && hashFiles('package.json') != '' }}
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            corepack enable && pnpm install --frozen-lockfile
+          elif [ -f yarn.lock ]; then
+            corepack enable && (yarn install --immutable || yarn install --frozen-lockfile)
+          elif [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Test Node project
+        if: ${{ inputs.mode == 'test' && hashFiles('package.json') != '' }}
+        run: npm test --if-present
+
+      - name: Build Node project
+        if: ${{ inputs.mode == 'build' && hashFiles('package.json') != '' }}
+        run: npm run build --if-present
+
+      - name: Set up Python
+        if: ${{ inputs.mode != 'inspect' && hashFiles('package.json') == '' && (hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != '') }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Run Python project
+        if: ${{ inputs.mode != 'inspect' && hashFiles('package.json') == '' && (hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != '') }}
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install -e .; fi
+          if [ "${{ inputs.mode }}" = "test" ]; then python -m pytest; else python -m compileall -q .; fi
+
+      - name: Reject unsupported projects
+        if: ${{ inputs.mode != 'inspect' && hashFiles('package.json') == '' && hashFiles('pyproject.toml') == '' && hashFiles('requirements.txt') == '' }}
+        run: |
+          echo 'No supported Node or Python project manifest found.' >&2
+          exit 2
