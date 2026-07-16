@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 
 type HarnessRun = {
   id: string
@@ -8,7 +8,7 @@ type HarnessRun = {
   git_ref: string
   mode: 'inspect' | 'test' | 'build'
   task: string
-  status: 'queued' | 'running' | 'succeeded' | 'failed'
+  status: 'running' | 'succeeded' | 'failed'
   exit_code: number | null
   output: string | null
   ai_summary: string | null
@@ -17,6 +17,10 @@ type HarnessRun = {
   started_at: string | null
   finished_at: string | null
 }
+
+const HISTORY_KEY = 'free-stack:harness-runs:v1'
+const ACCESS_KEY = 'free-stack:harness-access-key:v1'
+const MAX_LOCAL_RUNS = 20
 
 function repositoryLabel(repository: string) {
   return repository.replace(/^https:\/\/github\.com\//, '').replace(/\.git$/, '')
@@ -28,7 +32,21 @@ function statusClass(status: HarnessRun['status']) {
   return 'border-amber-400/40 bg-amber-400/10 text-amber-200'
 }
 
+function readLocalRuns(): HarnessRun[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') as unknown
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_LOCAL_RUNS) as HarnessRun[] : []
+  } catch {
+    return []
+  }
+}
+
+function writeLocalRuns(runs: HarnessRun[]) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(runs.slice(0, MAX_LOCAL_RUNS)))
+}
+
 export function HarnessView() {
+  const [accessKey, setAccessKey] = useState('')
   const [repository, setRepository] = useState('https://github.com/yishaik/free-stack-starter')
   const [gitRef, setGitRef] = useState('main')
   const [mode, setMode] = useState<HarnessRun['mode']>('inspect')
@@ -39,46 +57,58 @@ export function HarnessView() {
   const [historyLoading, setHistoryLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const loadRuns = useCallback(async () => {
-    setHistoryLoading(true)
-    try {
-      const response = await fetch('/api/harness/runs', { cache: 'no-store' })
-      const data = await response.json() as { runs?: HarnessRun[]; error?: string }
-      if (!response.ok) throw new Error(data.error || 'Unable to load harness history.')
-      setRuns(data.runs || [])
-      setSelected((current) => current || data.runs?.[0] || null)
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Unable to load harness history.')
-    } finally {
-      setHistoryLoading(false)
-    }
+  useEffect(() => {
+    const localRuns = readLocalRuns()
+    setRuns(localRuns)
+    setSelected(localRuns[0] || null)
+    setAccessKey(sessionStorage.getItem(ACCESS_KEY) || '')
+    setHistoryLoading(false)
   }, [])
 
-  useEffect(() => { void loadRuns() }, [loadRuns])
+  function rememberRun(run: HarnessRun) {
+    setSelected(run)
+    setRuns((current) => {
+      const next = [run, ...current.filter((item) => item.id !== run.id)].slice(0, MAX_LOCAL_RUNS)
+      writeLocalRuns(next)
+      return next
+    })
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setLoading(true)
     setError('')
+
+    if (accessKey.length < 24) {
+      setError('Enter the private harness access key configured in Vercel.')
+      return
+    }
+
+    setLoading(true)
+    sessionStorage.setItem(ACCESS_KEY, accessKey)
 
     try {
       const response = await fetch('/api/harness/runs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${accessKey}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ repository, gitRef, mode, task }),
       })
       const data = await response.json() as { run?: HarnessRun; error?: string }
-      if (data.run) {
-        setSelected(data.run)
-        setRuns((current) => [data.run!, ...current.filter((run) => run.id !== data.run!.id)])
-      }
+      if (data.run) rememberRun(data.run)
       if (!response.ok) throw new Error(data.error || data.run?.ai_summary || 'The harness run failed.')
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The harness run failed.')
-      await loadRuns()
     } finally {
       setLoading(false)
     }
+  }
+
+  function clearHistory() {
+    localStorage.removeItem(HISTORY_KEY)
+    setRuns([])
+    setSelected(null)
   }
 
   return (
@@ -93,6 +123,21 @@ export function HarnessView() {
         </div>
 
         <form onSubmit={submit} className="mt-6 space-y-5">
+          <label className="block">
+            <span className="text-sm font-semibold text-ink">Private access key</span>
+            <input
+              type="password"
+              required
+              minLength={24}
+              value={accessKey}
+              onChange={(event) => setAccessKey(event.target.value)}
+              autoComplete="off"
+              placeholder="HARNESS_ACCESS_KEY"
+              className="mt-2 w-full rounded-xl border border-line bg-bg px-4 py-3 font-mono text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+            />
+            <span className="mt-2 block text-xs leading-5 text-muted">Kept only in this browser tab. It is never written to local history.</span>
+          </label>
+
           <label className="block">
             <span className="text-sm font-semibold text-ink">GitHub repository</span>
             <input
@@ -140,9 +185,7 @@ export function HarnessView() {
           </label>
 
           {error ? (
-            <div className="rounded-xl border border-red-400/40 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-              {error} {error.toLowerCase().includes('sign in') ? <a className="font-semibold underline" href="/login">Open sign in</a> : null}
-            </div>
+            <div className="rounded-xl border border-red-400/40 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</div>
           ) : null}
 
           <button
@@ -159,9 +202,9 @@ export function HarnessView() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-ink">Run result</h2>
-            <p className="mt-1 text-sm text-muted">Supabase-backed history with AI analysis and raw execution output.</p>
+            <p className="mt-1 text-sm text-muted">AI analysis and raw output, with the last 20 runs stored only in this browser.</p>
           </div>
-          <button type="button" onClick={() => void loadRuns()} className="rounded-lg border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-ink">Refresh</button>
+          <button type="button" onClick={clearHistory} disabled={!runs.length} className="rounded-lg border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-ink disabled:opacity-40">Clear</button>
         </div>
 
         {selected ? (
@@ -187,13 +230,13 @@ export function HarnessView() {
           </div>
         ) : (
           <div className="mt-6 rounded-xl border border-dashed border-line px-5 py-12 text-center text-sm text-muted">
-            {historyLoading ? 'Loading run history…' : 'Run a repository to see its result here.'}
+            {historyLoading ? 'Loading local run history…' : 'Run a repository to see its result here.'}
           </div>
         )}
 
         {runs.length ? (
           <div className="mt-7 border-t border-line pt-5">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">Recent runs</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">Recent local runs</h3>
             <div className="mt-3 space-y-2">
               {runs.slice(0, 8).map((run) => (
                 <button
