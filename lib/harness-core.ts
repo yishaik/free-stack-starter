@@ -11,6 +11,7 @@ export function normalizeRepository(value: unknown): string | null {
   try {
     const url = new URL(value.trim())
     if (url.protocol !== 'https:' || url.hostname.toLowerCase() !== 'github.com') return null
+    if (url.username || url.password || url.port || url.search || url.hash) return null
 
     const parts = url.pathname.replace(/^\/+|\/+$/g, '').split('/')
     if (parts.length !== 2) return null
@@ -81,7 +82,7 @@ fi`
     return `set -o pipefail
 if [ -f package.json ]; then
   ${detectAndInstallNode}
-  npm test --if-present
+  npm run test --if-present
 elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
   python3 -m venv .venv
   . .venv/bin/activate
