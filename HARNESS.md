@@ -18,7 +18,7 @@ Create a random secret of at least 24 characters:
 openssl rand -base64 32
 ```
 
-Add it to the Vercel project as `HARNESS_ACCESS_KEY` for Preview and Production, then redeploy. The user enters this key in `/harness`; it is retained only in the current tab's `sessionStorage` and sent in the `X-Harness-Key` request header.
+Add it to the Vercel project as `HARNESS_ACCESS_KEY` for Preview and Production, then redeploy. Environment-variable changes apply only to new deployments. The user enters this key in `/harness`; it is retained only in the current tab's `sessionStorage` and sent to the same-origin API as an `Authorization: Bearer <key>` header.
 
 Vercel deployments use short-lived OIDC credentials for Sandbox and AI Gateway. Local development can instead configure `VERCEL_ACCESS_TOKEN` and optionally `AI_GATEWAY_API_KEY`.
 
